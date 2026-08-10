@@ -1,0 +1,12 @@
+Amp Models: 87
+Effect Models: 231
+Presets: 1,024 (8 setlists x 32 banks x 4 presets)
+Simultaneous Processing Blocks: Up to 32 (DSP permitting)
+Signal Flow Options: Up to 4 stereo, serial or parallel
+Snapshots: 8 per preset
+Impulse Responses (IRs): 128x 1024 or 2048-point
+Main Display (in/cm): 6.2/16.5 (Color)
+Footswitches: 12 capacitive touch w/ RGB rings
+MIDI: MIDI In/Out/Thru
+USB Audio Interface: Yes
+Product Weight (lb/kg): 14.6/6.6

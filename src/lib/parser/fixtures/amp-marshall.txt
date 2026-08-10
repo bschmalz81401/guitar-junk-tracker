@@ -1,0 +1,13 @@
+Marshall JVM410H
+Series: JVM
+Type: Tube
+Form Factor: Head
+Power Output: 100W
+Channels: 4
+Preamp Tubes: 4 x ECC83
+Power Tubes: 4 x EL34
+Effects Loop: Yes
+Master Volume: Yes
+MIDI: Yes
+Footswitch: Included
+Weight: 48.5 lbs

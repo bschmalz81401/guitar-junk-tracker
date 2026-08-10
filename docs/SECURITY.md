@@ -1,0 +1,85 @@
+# Guitar Junk Tracker — security notes
+
+Threat model: **home-lab / LAN self-host**, optional reverse proxy with TLS.
+Not hardened as a multi-tenant public SaaS.
+
+## Session cookies
+
+| Flag | Value | Why |
+|------|--------|-----|
+| Name | `gt_session` | HMAC session token (`userId.expires.sig`) |
+| `httpOnly` | true | Not readable from JavaScript |
+| `sameSite` | `lax` | Browser omits cookie on most cross-site POSTs (CSRF mitigation) |
+| `path` | `/` | Whole app |
+| `secure` | when `COOKIE_SECURE=1` | Set behind HTTPS only |
+| Max age | 30 days | Sliding only by re-login (token has absolute expiry) |
+
+Logout clears the cookie with the **same** path/secure attributes.
+
+**Session audit:** Tokens are signed with `AppSettings.sessionSecret`
+(generated on first run). Verification uses `timingSafeEqual`. Expired tokens
+are rejected. There is **no server-side session store** — revocation means
+changing the session secret (logs everyone out) or waiting for expiry.
+
+## CSRF
+
+Primary control: **`SameSite=Lax` session cookie**.
+
+Additional control on auth POSTs: if the browser sends `Origin`, it must match
+the request `Host` (`rejectCrossOrigin`). Missing `Origin` is allowed (non-browser
+clients / some same-site cases).
+
+State-changing APIs (`/api/items`, profile, admin) still rely on the cookie
+not being sent cross-site under Lax. Do not set `SameSite=None` without a
+deliberate design review.
+
+## Rate limits (auth)
+
+In-memory fixed windows (per Node process — one Docker replica):
+
+| Endpoint | Limit | Window |
+|----------|-------|--------|
+| Login (per IP) | 20 | 15 min |
+| Login (per email) | 10 | 15 min |
+| Signup (per IP) | 10 | 1 hour |
+| Forgot password (per IP) | 8 | 15 min |
+| Reset password (per IP) | 15 | 15 min |
+
+Responses: HTTP **429** + `Retry-After`. Limits reset on process restart.
+
+Behind a reverse proxy, ensure `X-Forwarded-For` is set by a trusted hop only.
+
+## Passwords
+
+- scrypt with random salt (`saltHex:hashHex`)
+- Minimum length 8 on signup/reset
+- Failed login returns a **generic** error (no email enumeration)
+- Forgot-password always claims success when SMTP is configured
+
+## Response headers
+
+Set in `next.config.ts` for all routes:
+
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Permissions-Policy: camera=(), microphone=(), geolocation=()`
+
+HSTS should be configured on the **reverse proxy** when you terminate TLS, not
+in the app by default (LAN HTTP is common).
+
+## Production checklist
+
+1. Choose a strong admin password in the first-run setup wizard.
+2. Serve over HTTPS and set `COOKIE_SECURE=1`.
+3. Do not port-forward to the public internet without TLS and a threat model.
+4. Keep catalogs private by default; review public catalog + price/serial flags.
+5. Back up `./data` regularly (`scripts/backup.sh`).
+6. Keep your Docker host and OS updated.
+
+## Out of scope (later)
+
+- Distributed rate limits (Redis) for multi-replica
+- Server-side session revocation list
+- Full CSRF tokens for every mutating API
+- CAPTCHA on login/signup

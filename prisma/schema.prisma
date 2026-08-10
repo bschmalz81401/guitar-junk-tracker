@@ -1,0 +1,320 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum ItemStatus {
+  owned
+  sold
+  wishlist
+}
+
+enum ItemCategory {
+  guitar
+  amp
+  cab
+  pedal
+  multifx
+  other
+}
+
+enum UserRole {
+  admin
+  user
+}
+
+model User {
+  id            Int       @id @default(autoincrement())
+  email         String    @unique
+  /// Public URL slug: /{username}. Lowercase letters, numbers, underscore.
+  username      String    @unique
+  passwordHash  String
+  name          String?
+  bio           String?
+  location      String?
+  /// When true, anyone can view this user's catalog at /{username}.
+  catalogPublic Boolean   @default(false)
+  role          UserRole  @default(user)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  items       Item[]
+  resetTokens PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// Singleton app configuration (always id = 1).
+model AppSettings {
+  id            Int      @id @default(1)
+  allowSignup   Boolean  @default(false)
+  smtpHost      String?
+  smtpPort      Int?
+  smtpSecure    Boolean  @default(true)
+  smtpUser      String?
+  smtpPassword  String?
+  smtpFrom      String?
+  /// Email of the user whose collection appears on the guest landing page.
+  /// Falls back to SHOWCASE_EMAIL env, then first admin.
+  showcaseEmail String?
+  /// HMAC secret for session cookies; generated on first boot.
+  sessionSecret String
+  updatedAt     DateTime @updatedAt
+}
+
+/// A single piece of gear. Everything shared across categories — ownership,
+/// photos, mods — lives here; only the spec sheet differs by category.
+model Item {
+  id                Int          @id @default(autoincrement())
+  userId            Int
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category          ItemCategory @default(guitar)
+  name              String
+  brand             String
+  model             String
+  series            String?
+  finishColor       String?
+  dateAcquired      DateTime?
+  acquisitionSource String?
+  pricePaid         Float?
+  /// When true, pricePaid is visible on public catalog pages.
+  pricePaidPublic   Boolean      @default(false)
+  serialNumber      String?
+  /// When true, serialNumber is visible on public catalog pages.
+  serialNumberPublic Boolean     @default(false)
+  status            ItemStatus   @default(owned)
+  notes             String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  guitarSpec  GuitarSpec?
+  ampSpec     AmpSpec?
+  cabSpec     CabSpec?
+  pedalSpec   PedalSpec?
+  multiFxSpec MultiFxSpec?
+  otherSpec   OtherSpec?
+  photos      Photo[]
+  mods        Mod[]
+
+  @@index([userId])
+  @@index([userId, category])
+}
+
+model GuitarSpec {
+  id Int @id @default(autoincrement())
+
+  itemId Int  @unique
+  item   Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  bodyShape         String?
+  bodyWood          String?
+  bodyTopWood       String?
+  bodyBinding       String?
+  neckConstruction  String?
+  neckWood          String?
+  neckShape         String?
+  scaleLength       String?
+  neckBinding       String?
+  fingerboardWood   String?
+  fingerboardRadius String?
+  fretCount         Int?
+  fretSize          String?
+  nutWidth          String?
+  nutMaterial       String?
+  inlayMaterial     String?
+  inlayStyle        String?
+  bridgeType        String?
+  tunerType         String?
+  hardwareColor     String?
+  bridgePickup      String?
+  neckPickup        String?
+  pickupType        String?
+  controls          String?
+  weightLbs         Float?
+  caseIncluded      Boolean @default(false)
+  caseType          String?
+}
+
+model AmpSpec {
+  id Int @id @default(autoincrement())
+
+  itemId Int  @unique
+  item   Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  formFactor    String?
+  ampType       String?
+  wattage       Float?
+  channels      Int?
+  preampTubes   String?
+  powerTubes    String?
+  rectifier     String?
+  speakerCount  Int?
+  speakerSize   String?
+  speakerModel  String?
+  impedance     String?
+  eqControls    String?
+  reverb        String?
+  effectsLoop   Boolean @default(false)
+  masterVolume  Boolean @default(false)
+  boost         Boolean @default(false)
+  footswitch    String?
+  midi          Boolean @default(false)
+  attenuator    Boolean @default(false)
+  diOut         Boolean @default(false)
+  cabSim        Boolean @default(false)
+  weightLbs     Float?
+  dimensions    String?
+  covering      String?
+  grilleCloth   String?
+}
+
+model CabSpec {
+  id Int @id @default(autoincrement())
+
+  itemId Int  @unique
+  item   Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  speakerCount   Int?
+  speakerSize    String?
+  speakerModel   String?
+  cabType        String?
+  impedance      String?
+  powerHandling  Float?
+  wiring         String?
+  inputJacks     String?
+  stereoCapable  Boolean @default(false)
+  cabWood        String?
+  baffle         String?
+  covering       String?
+  grilleCloth    String?
+  hardware       String?
+  casters        Boolean @default(false)
+  weightLbs      Float?
+  dimensions     String?
+}
+
+model PedalSpec {
+  id Int @id @default(autoincrement())
+
+  itemId Int  @unique
+  item   Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  effectType      String?
+  circuitType     String?
+  trueBypass      Boolean @default(false)
+  knobs           String?
+  switches        String?
+  presets         String?
+  expressionInput Boolean @default(false)
+  tapTempo        Boolean @default(false)
+  inputs          String?
+  outputs         String?
+  stereo          Boolean @default(false)
+  midi            Boolean @default(false)
+  powerRequired   String?
+  currentDraw     Int?
+  batteryOption   Boolean @default(false)
+  enclosureSize   String?
+  dimensions      String?
+  weightLbs       Float?
+}
+
+/// Multi-effects units, modelers, and floor processors.
+/// Fields match the first column of the Line 6 Processors Comparison Chart.
+model MultiFxSpec {
+  id Int @id @default(autoincrement())
+
+  itemId Int  @unique
+  item   Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  ampModels            String?
+  effectModels         String?
+  presets              String?
+  processingBlocks     String?
+  signalFlowOptions    String?
+  snapshots            String?
+  impulseResponses     String?
+  globalEqBands        String?
+  mainDisplay          String?
+  footswitches         String?
+  footswitchModes      String?
+  footswitchTypes      String?
+  looperTypes          String?
+  looperMemoryFull     String?
+  looperMemoryHalf     String?
+  quarterInchInputs    String?
+  quarterInchOutputs   String?
+  xlrInputs            String?
+  xlrOutputs           String?
+  effectLoops          String?
+  digitalIn            String?
+  digitalOut           String?
+  headphones           String?
+  midi                 String?
+  usbAudioInterface    String?
+  masterRemoteControl  String?
+  variableImpedance    String?
+  chassis              String?
+  treadle              String?
+  scribbleStripLcds    String?
+  expPedalInputs       String?
+  externalAmpControl   String?
+  wirelessTransmitter  String?
+  wirelessReceiver     String?
+  power                String?
+  height               String?
+  width                String?
+  depth                String?
+  /// Chart stores combined "lb/kg" values (e.g. 14.6/6.6).
+  weightLbs            String?
+}
+
+/// Catch-all for gear that doesn't fit another category.
+model OtherSpec {
+  id Int @id @default(autoincrement())
+
+  itemId Int  @unique
+  item   Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  itemType      String?
+  material      String?
+  powerRequired String?
+  dimensions    String?
+  weightLbs     Float?
+  details       String?
+}
+
+model Photo {
+  id        Int      @id @default(autoincrement())
+  itemId    Int
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  filePath  String
+  caption   String?
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Mod {
+  id          Int      @id @default(autoincrement())
+  itemId      Int
+  item        Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  date        DateTime
+  description String
+  createdAt   DateTime @default(now())
+}

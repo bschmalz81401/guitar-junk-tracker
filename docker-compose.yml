@@ -1,0 +1,24 @@
+services:
+  guitar-tracker:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3131:3131"
+    environment:
+      - DATABASE_URL=file:/data/guitar-tracker.db
+      - PHOTOS_DIR=/data/photos
+      - PORT=3131
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3131/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s

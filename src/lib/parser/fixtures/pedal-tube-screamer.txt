@@ -1,0 +1,8 @@
+Ibanez Tube Screamer TS9
+Effect Type: Overdrive
+Circuit: Analog
+True Bypass: No
+Knobs: Drive, Tone, Level
+Power Required: 9V DC
+Current Draw: 8 mA
+Battery Option: Yes

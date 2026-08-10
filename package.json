@@ -1,0 +1,42 @@
+{
+  "name": "guitar-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "tsx scripts/test-all.ts",
+    "test:parser": "tsx scripts/test-parser.ts",
+    "test:privacy": "tsx scripts/test-privacy.ts",
+    "test:categories": "tsx scripts/test-categories.ts",
+    "test:duplicate": "tsx scripts/test-item-duplicate.ts",
+    "test:csv-import": "tsx scripts/test-csv-import.ts",
+    "test:rate-limit": "tsx scripts/test-rate-limit.ts",
+    "gate": "npm run lint && npm test && npm run build"
+  },
+  "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "better-sqlite3": "^12.11.1",
+    "next": "16.2.10",
+    "nodemailer": "^9.0.3",
+    "prisma": "^7.8.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/nodemailer": "^8.0.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.10",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.0",
+    "typescript": "^5"
+  }
+}
