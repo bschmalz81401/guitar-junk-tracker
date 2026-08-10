@@ -8,8 +8,14 @@ services:
       - DATABASE_URL=file:/data/guitar-tracker.db
       - PHOTOS_DIR=/data/photos
       - PORT=3131
+    # Host ./data is created automatically on first `compose up` if missing.
+    # Entrypoint also mkdir -p's /data and /data/photos inside the container.
     volumes:
-      - ./data:/data
+      - type: bind
+        source: ./data
+        target: /data
+        bind:
+          create_host_path: true
     healthcheck:
       test:
         [

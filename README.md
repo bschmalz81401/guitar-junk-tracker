@@ -37,7 +37,9 @@ your administrator account (email, username, password) and you're in. That's
 the only setup step; there are no admin passwords to put in a config file.
 
 Your database and photos are stored in `./data` next to the compose file
-(bind-mounted into the container), so they survive rebuilds and updates.
+(bind-mounted into the container), so they survive rebuilds and updates. The
+entrypoint creates `/data` and `/data/photos` inside the container on start if
+they are missing — you do not need to create them by hand.
 
 ### Stopping / updating
 

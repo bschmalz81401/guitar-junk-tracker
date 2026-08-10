@@ -18,6 +18,13 @@ RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3131
+# Defaults match docker-compose.yml (override via env / compose).
+ENV DATABASE_URL=file:/data/guitar-tracker.db
+ENV PHOTOS_DIR=/data/photos
+
+# Pre-create data paths in the image so first boot works even without a
+# pre-existing host directory (entrypoint re-creates them on the volume too).
+RUN mkdir -p /data/photos
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
@@ -33,5 +40,6 @@ COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 
 EXPOSE 3131
+VOLUME ["/data"]
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
