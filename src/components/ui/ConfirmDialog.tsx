@@ -4,6 +4,13 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Button from "./Button";
 
+/**
+ * Modal confirm for destructive / important actions.
+ *
+ * Always portaled to document.body so it is never trapped under page chrome
+ * or under an `inert` ancestor (dialogs used to set inert on <main> while
+ * still rendering inside it, which made Cancel/Confirm unclickable).
+ */
 export default function ConfirmDialog({
   open,
   title,
@@ -81,15 +88,14 @@ export default function ConfirmDialog({
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
-    // Hide background from AT / keyboard while open.
-    // Dialog is portaled to document.body so it is NOT a descendant of main —
-    // marking main inert would otherwise make the dialog itself unclickable.
+    // Mark page chrome for AT only — do NOT use `inert` here. Dialogs used
+    // to mark <main> inert while still rendering under it, which blocked
+    // every button in the dialog (delete photo, delete item, etc.).
     const main = document.querySelector("main");
     const header = document.querySelector("header");
     for (const el of [main, header]) {
       if (!el) continue;
       el.setAttribute("aria-hidden", "true");
-      el.setAttribute("inert", "");
     }
 
     return () => {
@@ -99,7 +105,6 @@ export default function ConfirmDialog({
       for (const el of [main, header]) {
         if (!el) continue;
         el.removeAttribute("aria-hidden");
-        el.removeAttribute("inert");
       }
       previouslyFocused.current?.focus?.();
       previouslyFocused.current = null;
@@ -118,14 +123,14 @@ export default function ConfirmDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4"
       role="presentation"
     >
       <button
         type="button"
         tabIndex={-1}
         aria-label="Dismiss dialog"
-        className="absolute inset-0 bg-black/60 cursor-pointer"
+        className="absolute inset-0 z-0 bg-black/60 cursor-pointer"
         onClick={() => !busy && onCancel()}
       />
       <div
@@ -134,7 +139,7 @@ export default function ConfirmDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={describedBy}
-        className="relative z-10 w-full max-w-md card p-5 shadow-xl"
+        className="relative z-10 w-full max-w-md card p-5 shadow-xl pointer-events-auto"
       >
         <h2 id={titleId} className="text-lg font-semibold">
           {title}
