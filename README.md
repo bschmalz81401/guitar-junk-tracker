@@ -25,7 +25,7 @@ services required.
 ## Quick start (Docker)
 
 ```bash
-git clone https://github.com/<your-account>/guitar-junk-tracker.git
+git clone https://github.com/bschmalz81401/guitar-junk-tracker.git
 cd guitar-junk-tracker
 docker compose up -d --build
 ```
