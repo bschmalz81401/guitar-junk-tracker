@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Button from "./Button";
 
@@ -37,11 +37,6 @@ export default function ConfirmDialog({
   // Stable latest callbacks so the open-effect does not re-fire every parent render.
   const onCancelRef = useRef(onCancel);
   const busyRef = useRef(busy);
-  // Portal only after mount — document.body is unavailable during SSR.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   useEffect(() => {
     onCancelRef.current = onCancel;
@@ -111,7 +106,8 @@ export default function ConfirmDialog({
     };
   }, [open]);
 
-  if (!open || !mounted) return null;
+  // Dialogs only open from client interactions; skip SSR (no document).
+  if (!open || typeof document === "undefined") return null;
 
   const describedBy = [
     description ? descId : null,
