@@ -37,9 +37,11 @@ COPY --from=builder /app/src/generated ./src/generated
 COPY --from=builder /app/src/lib ./src/lib
 COPY --from=builder /app/scripts ./scripts
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
-RUN chmod +x ./docker-entrypoint.sh
+# Strip Windows CRLF if present (otherwise exec fails with "no such file or directory"
+# because the kernel looks for "/bin/sh\r"). Invoke via /bin/sh so the shebang is unused.
+RUN sed -i 's/\r$//' ./docker-entrypoint.sh && chmod +x ./docker-entrypoint.sh
 
 EXPOSE 3131
 VOLUME ["/data"]
 
-ENTRYPOINT ["./docker-entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "/app/docker-entrypoint.sh"]
