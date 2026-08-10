@@ -9,10 +9,34 @@ export interface SynonymEntry {
  * Label synonyms per category. Keys may be core Item fields (series,
  * finishColor) as well as spec fields — the form merges both.
  */
+/** Core item identity labels (Amazon / retailer product info tables). */
+const IDENTITY: SynonymEntry[] = [
+  { field: "brand", patterns: ["brand name", "brand", "manufacturer brand"] },
+  {
+    field: "model",
+    patterns: ["item model number", "model number", "model name", "model"],
+  },
+];
+
+const SHARED_META: SynonymEntry[] = [
+  { field: "weightLbs", patterns: ["item weight", "product weight", "net weight", "weight"] },
+  {
+    field: "dimensions",
+    patterns: [
+      "product dimensions",
+      "item dimensions",
+      "package dimensions",
+      "dimensions",
+      "size",
+    ],
+  },
+];
+
 export const SYNONYMS: Record<CategoryKey, SynonymEntry[]> = {
   guitar: [
+    ...IDENTITY,
     { field: "series", patterns: ["series"] },
-    { field: "finishColor", patterns: ["finish", "color", "colour"] },
+    { field: "finishColor", patterns: ["finish color", "finish", "color", "colour"] },
     { field: "bodyShape", patterns: ["body shape", "body style"] },
     { field: "bodyWood", patterns: ["body wood", "body material", "body"] },
     { field: "bodyTopWood", patterns: ["top wood", "body top", "top material"] },
@@ -59,14 +83,15 @@ export const SYNONYMS: Record<CategoryKey, SynonymEntry[]> = {
       patterns: ["pickup configuration", "pickup type", "pickups", "electronics"],
     },
     { field: "controls", patterns: ["control layout", "controls", "wiring"] },
-    { field: "weightLbs", patterns: ["weight"] },
+    ...SHARED_META,
     { field: "caseIncluded", patterns: ["case included", "hardshell case", "gig bag included"] },
     { field: "caseType", patterns: ["included case", "case/gig bag", "case type", "case"] },
   ],
 
   amp: [
+    ...IDENTITY,
     { field: "series", patterns: ["series"] },
-    { field: "finishColor", patterns: ["finish", "color", "colour"] },
+    { field: "finishColor", patterns: ["finish color", "finish", "color", "colour"] },
     {
       field: "formFactor",
       patterns: ["form factor", "configuration", "amplifier format", "format", "head/combo"],
@@ -75,7 +100,18 @@ export const SYNONYMS: Record<CategoryKey, SynonymEntry[]> = {
       field: "ampType",
       patterns: ["amp type", "amplifier type", "technology", "circuit type", "type"],
     },
-    { field: "wattage", patterns: ["power output", "output power", "wattage", "watts", "power"] },
+    {
+      field: "wattage",
+      patterns: [
+        "output wattage",
+        "power output",
+        "output power",
+        "rated power",
+        "wattage",
+        "watts",
+        "power",
+      ],
+    },
     { field: "channels", patterns: ["number of channels", "channels", "channel"] },
     { field: "preampTubes", patterns: ["preamp tubes", "preamp valves", "preamp tube"] },
     {
@@ -103,15 +139,15 @@ export const SYNONYMS: Record<CategoryKey, SynonymEntry[]> = {
       field: "cabSim",
       patterns: ["cab sim", "cabinet simulation", "speaker simulation", "ir loader", "ir"],
     },
-    { field: "weightLbs", patterns: ["weight"] },
-    { field: "dimensions", patterns: ["dimensions", "size"] },
+    ...SHARED_META,
     { field: "covering", patterns: ["covering", "tolex", "cabinet covering"] },
     { field: "grilleCloth", patterns: ["grille cloth", "grill cloth", "grille", "grill"] },
   ],
 
   cab: [
+    ...IDENTITY,
     { field: "series", patterns: ["series"] },
-    { field: "finishColor", patterns: ["finish", "color", "colour"] },
+    { field: "finishColor", patterns: ["finish color", "finish", "color", "colour"] },
     { field: "speakerCount", patterns: ["number of speakers", "speaker count", "configuration"] },
     { field: "speakerSize", patterns: ["speaker size", "speaker diameter"] },
     { field: "speakerModel", patterns: ["speaker model", "speakers", "speaker", "drivers"] },
@@ -136,13 +172,16 @@ export const SYNONYMS: Record<CategoryKey, SynonymEntry[]> = {
     { field: "grilleCloth", patterns: ["grille cloth", "grill cloth", "grille", "grill"] },
     { field: "hardware", patterns: ["hardware", "corners", "handles"] },
     { field: "casters", patterns: ["casters", "wheels"] },
-    { field: "weightLbs", patterns: ["weight"] },
-    { field: "dimensions", patterns: ["dimensions", "size"] },
+    ...SHARED_META,
   ],
 
   pedal: [
+    ...IDENTITY,
     { field: "series", patterns: ["series"] },
-    { field: "finishColor", patterns: ["finish", "color", "colour", "enclosure color"] },
+    {
+      field: "finishColor",
+      patterns: ["finish color", "finish", "enclosure color", "color", "colour"],
+    },
     { field: "effectType", patterns: ["effect type", "pedal type", "effect", "type"] },
     {
       field: "circuitType",
@@ -168,13 +207,13 @@ export const SYNONYMS: Record<CategoryKey, SynonymEntry[]> = {
     },
     { field: "batteryOption", patterns: ["battery operation", "battery"] },
     { field: "enclosureSize", patterns: ["enclosure size", "enclosure", "housing"] },
-    { field: "dimensions", patterns: ["dimensions", "size"] },
-    { field: "weightLbs", patterns: ["weight"] },
+    ...SHARED_META,
   ],
 
   multifx: [
+    ...IDENTITY,
     { field: "series", patterns: ["series"] },
-    { field: "finishColor", patterns: ["finish", "color", "colour"] },
+    { field: "finishColor", patterns: ["finish color", "finish", "color", "colour"] },
     { field: "ampModels", patterns: ["amp models", "amplifier models", "amps"] },
     {
       field: "effectModels",
@@ -323,13 +362,14 @@ export const SYNONYMS: Record<CategoryKey, SynonymEntry[]> = {
     },
     {
       field: "weightLbs",
-      patterns: ["product weight (lb/kg)", "product weight", "weight"],
+      patterns: ["product weight (lb/kg)", "item weight", "product weight", "weight"],
     },
   ],
 
   other: [
+    ...IDENTITY,
     { field: "series", patterns: ["series"] },
-    { field: "finishColor", patterns: ["finish", "color", "colour"] },
+    { field: "finishColor", patterns: ["finish color", "finish", "color", "colour"] },
     {
       field: "itemType",
       patterns: ["item type", "product type", "type", "category", "gear type"],
@@ -339,8 +379,9 @@ export const SYNONYMS: Record<CategoryKey, SynonymEntry[]> = {
       field: "powerRequired",
       patterns: ["power supply", "power requirements", "power required", "voltage", "power"],
     },
-    { field: "dimensions", patterns: ["dimensions", "size", "length"] },
-    { field: "weightLbs", patterns: ["weight"] },
+    ...SHARED_META.filter((e) => e.field !== "weightLbs"),
+    { field: "dimensions", patterns: ["product dimensions", "item dimensions", "dimensions", "size", "length"] },
+    { field: "weightLbs", patterns: ["item weight", "product weight", "weight"] },
     { field: "details", patterns: ["details", "specifications", "specs", "features", "description"] },
   ],
 };

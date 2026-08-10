@@ -133,17 +133,26 @@ function extractEmbeddedValues(
     else if (/\bhead\b/.test(lower) && !/\bheadphone\b/.test(lower)) out.formFactor = "Head";
     else if (/\brack\b/.test(lower)) out.formFactor = "Rack";
 
-    // Combo speaker shorthand: "1x12", "2x12 combo"
-    const spk = lower.match(/\b(\d)\s*[x×]\s*(8|10|12|15)\b/);
-    if (spk) {
+    // Combo speaker shorthand: "1x12", "2x12 combo".
+    // Reject product-dimension tails like "15.5 x 9.2 x 12.8 inches" where a
+    // digit after a decimal can look like "2 x 12".
+    const spk = lower.match(/(?<![\d.])\b([1-8])\s*[x×]\s*(8|10|12|15)\b(?!\s*\.?\d)/);
+    if (spk && !/\b(dimension|inches?\b|cm\b|mm\b|lbs?\b|pounds?)\b/i.test(lower)) {
+      out.speakerCount = Number(spk[1]);
+      out.speakerSize = `${spk[2]}"`;
+    } else if (spk && /\b(speaker|combo|cabinet|cab)\b/i.test(lower)) {
       out.speakerCount = Number(spk[1]);
       out.speakerSize = `${spk[2]}"`;
     }
   }
 
   if (category === "cab") {
-    const cfg = lower.match(/\b(\d)\s*[x×]\s*(8|10|12|15)\b/);
-    if (cfg) {
+    const cfg = lower.match(/(?<![\d.])\b([1-8])\s*[x×]\s*(8|10|12|15)\b(?!\s*\.?\d)/);
+    if (
+      cfg &&
+      (!/\b(dimension|inches?\b|cm\b|mm\b)\b/i.test(lower) ||
+        /\b(speaker|cabinet|cab|config)\b/i.test(lower))
+    ) {
       out.speakerCount = Number(cfg[1]);
       out.speakerSize = `${cfg[2]}"`;
     }
@@ -228,9 +237,24 @@ function extractFeatureMentions(
     } else if (type === "text" && out[field] === undefined) {
       // Standalone feature lines like "Footswitch included"
       if (line.length <= 80) {
-        if (/\bincluded\b/i.test(line)) out[field] = "Included";
-        else if (line.toLowerCase().trim() === pattern || line.length < pattern.length + 25) {
-          out[field] = line.trim();
+        if (/\bincluded\b/i.test(line)) {
+          out[field] = "Included";
+        } else {
+          // "Color Black" / "Brand Fender" — pattern is the label, rest is value.
+          const labeled = line.match(
+            new RegExp(`^\\s*${escaped}\\s*[:\\t]?\\s+(.+)$`, "i")
+          );
+          if (labeled?.[1] && labeled[1].trim().length < 80) {
+            out[field] = labeled[1].trim();
+          } else if (line.toLowerCase().trim() === pattern) {
+            // bare label with no value — skip
+          } else if (line.length < pattern.length + 25 && !labeled) {
+            // Avoid storing the whole "Label Value" line as the value when we
+            // already tried to split it; only keep short free-form phrases.
+            if (!new RegExp(`^\\s*${escaped}\\b`, "i").test(line)) {
+              out[field] = line.trim();
+            }
+          }
         }
         if (out[field] !== undefined) {
           claimed.add(field);
@@ -286,7 +310,15 @@ export function parseSpecText(
 ): Record<string, string | number | boolean> {
   const entries = SYNONYMS[category.key] ?? [];
 
-  const fieldTypes: Record<string, SpecFieldType> = {};
+  const fieldTypes: Record<string, SpecFieldType> = {
+    // Core Item fields (not in category.specSections) — still fillable via paste.
+    brand: "text",
+    model: "text",
+    name: "text",
+    series: "text",
+    finishColor: "text",
+    notes: "text",
+  };
   for (const section of category.specSections) {
     for (const f of section.fields) fieldTypes[f.key] = f.type;
   }
@@ -349,6 +381,30 @@ export function parseSpecText(
         // Unmatched "Something: detail" — keep as a note if it looks useful.
         if (label.length <= 40) leftoverNotes.push(line);
         // Fall through to free-form extraction on the whole line too.
+      }
+    }
+
+    // --- 2b) Space-separated "Label Value" (Amazon tables often lose tabs) ---
+    // e.g. "Brand Name Fender", "Item Weight 15 pounds", "Output Wattage 25 Watts"
+    if (!line.includes("\t") && colonIdx < 0) {
+      const spaced = line.match(
+        /^((?:brand(?:\s+name)?|item\s+model\s+number|model\s+number|model|item\s+weight|product\s+dimensions|output\s+wattage|power\s+output|wattage|number\s+of\s+channels|channels?|color|colour|finish|series|manufacturer|material|power\s+source|item\s+dimensions))\s{1,4}(.+)$/i
+      );
+      if (spaced) {
+        const label = spaced[1].trim();
+        const value = spaced[2].trim();
+        const field = matchField(label, entries);
+        if (field && value && value.length < 120) {
+          const coerced = coerceValue(fieldTypes[field], value);
+          if (coerced !== null) {
+            setField(result, field, coerced);
+            const embedded = extractEmbeddedValues(line, category.key);
+            for (const [k, v] of Object.entries(embedded)) {
+              setField(result, k, v);
+            }
+            continue;
+          }
+        }
       }
     }
 
