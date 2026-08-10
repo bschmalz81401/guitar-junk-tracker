@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Button from "./Button";
 
 export default function ConfirmDialog({
@@ -36,6 +37,12 @@ export default function ConfirmDialog({
   // Stable latest callbacks so the open-effect does not re-fire every parent render.
   const onCancelRef = useRef(onCancel);
   const busyRef = useRef(busy);
+  // Portal only after mount — document.body is unavailable during SSR.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     onCancelRef.current = onCancel;
     busyRef.current = busy;
@@ -80,6 +87,8 @@ export default function ConfirmDialog({
     document.body.style.overflow = "hidden";
 
     // Hide background from AT / keyboard while open.
+    // Dialog is portaled to document.body so it is NOT a descendant of main —
+    // marking main inert would otherwise make the dialog itself unclickable.
     const main = document.querySelector("main");
     const header = document.querySelector("header");
     for (const el of [main, header]) {
@@ -102,7 +111,7 @@ export default function ConfirmDialog({
     };
   }, [open]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const describedBy = [
     description ? descId : null,
@@ -111,7 +120,7 @@ export default function ConfirmDialog({
     .filter(Boolean)
     .join(" ") || undefined;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
       role="presentation"
@@ -157,6 +166,7 @@ export default function ConfirmDialog({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
