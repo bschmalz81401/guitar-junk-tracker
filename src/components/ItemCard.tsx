@@ -1,6 +1,6 @@
 import Link from "next/link";
-import Image from "next/image";
 import CategoryIcon from "./CategoryIcon";
+import GearPhoto from "./GearPhoto";
 import Badge, { statusTone } from "./ui/Badge";
 import type { CategoryKey } from "@/types/categories";
 
@@ -44,14 +44,13 @@ export default function ItemCard({
   const media = (
     <div className="relative aspect-[4/3] bg-[var(--surface-hover)]">
       {primaryPhotoPath ? (
-        <Image
+        <GearPhoto
           src={`/api/photos/${primaryPhotoPath}`}
           alt={name}
           fill
           className="object-contain"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
           priority={priority}
-          quality={75}
         />
       ) : (
         <div className="flex h-full items-center justify-center text-[var(--muted)] opacity-40">

@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState } from "react";
 import CategoryIcon from "./CategoryIcon";
+import GearPhoto from "./GearPhoto";
 import type { CategoryKey } from "@/types/categories";
 import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
@@ -141,14 +141,13 @@ export default function PhotoGallery({
     <div>
       <div className="relative aspect-[4/3] card overflow-hidden mb-3">
         {active ? (
-          <Image
+          <GearPhoto
             src={`/api/photos/${active.filePath}`}
             alt={active.caption ?? "Gear photo"}
             fill
             className="object-contain"
             sizes="(max-width: 768px) 100vw, 500px"
             priority
-            quality={85}
           />
         ) : (
           <div className="flex h-full items-center justify-center text-[var(--muted)] opacity-40">
@@ -170,13 +169,12 @@ export default function PhotoGallery({
                 i === activeIndex ? "border-[var(--accent)]" : "border-[var(--border)]"
               }`}
             >
-              <Image
+              <GearPhoto
                 src={`/api/photos/${p.filePath}`}
                 alt={p.caption ?? `Gear photo ${i + 1}`}
                 fill
                 className="object-cover"
                 sizes="64px"
-                quality={60}
               />
             </button>
           ))}

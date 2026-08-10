@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { CATEGORY_LIST } from "@/types/categories";
 import CategoryIcon from "@/components/CategoryIcon";
+import GearPhoto from "@/components/GearPhoto";
 
 export default function CategoryGrid({
   counts,
@@ -29,15 +30,26 @@ export default function CategoryGrid({
           >
             <div className="relative aspect-[4/3] bg-[var(--surface-hover)]">
               {image ? (
-                <Image
-                  src={image}
-                  alt={`${category.plural} cover photo`}
-                  fill
-                  className="object-contain opacity-90 group-hover:opacity-100 transition-opacity duration-200"
-                  sizes="(max-width: 768px) 100vw, 300px"
-                  priority={index < 2}
-                  quality={75}
-                />
+                image.startsWith("/api/photos/") ? (
+                  <GearPhoto
+                    src={image}
+                    alt={`${category.plural} cover photo`}
+                    fill
+                    className="object-contain opacity-90 group-hover:opacity-100 transition-opacity duration-200"
+                    sizes="(max-width: 768px) 100vw, 300px"
+                    priority={index < 2}
+                  />
+                ) : (
+                  <Image
+                    src={image}
+                    alt={`${category.plural} cover photo`}
+                    fill
+                    className="object-contain opacity-90 group-hover:opacity-100 transition-opacity duration-200"
+                    sizes="(max-width: 768px) 100vw, 300px"
+                    priority={index < 2}
+                    quality={75}
+                  />
+                )
               ) : (
                 <div className="flex h-full items-center justify-center text-[var(--muted)] opacity-40">
                   <CategoryIcon category={category.key} className="w-20 h-20" />
