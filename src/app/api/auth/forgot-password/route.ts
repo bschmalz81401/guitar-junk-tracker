@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSettings, isSmtpConfigured } from "@/lib/settings";
-import { requestOrigin, sendPasswordResetForUser } from "@/lib/passwordReset";
+import { publicAppOrigin, sendPasswordResetForUser } from "@/lib/passwordReset";
 import {
   AUTH_LIMITS,
   enforceRateLimit,
@@ -29,6 +29,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  try {
+    publicAppOrigin();
+  } catch (err) {
+    return NextResponse.json(
+      {
+        error:
+          err instanceof Error
+            ? err.message
+            : "Password reset is not available until APP_PUBLIC_ORIGIN is set.",
+      },
+      { status: 503 }
+    );
+  }
+
   const body = await request.json().catch(() => null);
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
   if (!email) {
@@ -39,7 +53,7 @@ export async function POST(request: NextRequest) {
   const user = await prisma.user.findUnique({ where: { email } });
   if (user) {
     try {
-      await sendPasswordResetForUser(user, requestOrigin(request));
+      await sendPasswordResetForUser(user);
     } catch (err) {
       console.error("Failed to send reset email:", err);
       return NextResponse.json(

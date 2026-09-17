@@ -54,7 +54,11 @@ Behind a reverse proxy, ensure `X-Forwarded-For` is set by a trusted hop only.
 - scrypt with random salt (`saltHex:hashHex`)
 - Minimum length 8 on signup/reset
 - Failed login returns a **generic** error (no email enumeration)
-- Forgot-password always claims success when SMTP is configured
+- Forgot-password claims generic success only when SMTP **and**
+  `APP_PUBLIC_ORIGIN` are valid. Otherwise it returns HTTP 503 (no email
+  enumeration). Reset-email links are built from `APP_PUBLIC_ORIGIN` only.
+  Incoming `X-Forwarded-Host` / `X-Forwarded-Proto` headers cannot change the
+  link.
 
 ## Response headers
 
@@ -71,7 +75,8 @@ in the app by default (LAN HTTP is common).
 ## Production checklist
 
 1. Choose a strong admin password in the first-run setup wizard.
-2. Serve over HTTPS and set `COOKIE_SECURE=1`.
+2. Serve over HTTPS and set `COOKIE_SECURE=1`. Set `APP_PUBLIC_ORIGIN` to that
+   HTTPS origin so password-reset emails point at your real URL.
 3. Do not port-forward to the public internet without TLS and a threat model.
 4. Keep catalogs private by default; review public catalog + price/serial flags.
 5. Back up `./data` regularly (`scripts/backup.sh`).

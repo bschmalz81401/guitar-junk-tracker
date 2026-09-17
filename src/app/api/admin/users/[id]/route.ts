@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
-import { requestOrigin, sendPasswordResetForUser } from "@/lib/passwordReset";
+import { sendPasswordResetForUser } from "@/lib/passwordReset";
 import { prisma } from "@/lib/prisma";
 import { normalizeUsername, validateUsername } from "@/lib/username";
 
@@ -65,10 +65,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   // Admin-triggered password reset email
   if (body.action === "sendPasswordReset") {
     try {
-      await sendPasswordResetForUser(
-        { id: existing.id, email: existing.email },
-        requestOrigin(request)
-      );
+      await sendPasswordResetForUser({
+        id: existing.id,
+        email: existing.email,
+      });
       return NextResponse.json({
         success: true,
         message: `Password reset email sent to ${existing.email}.`,

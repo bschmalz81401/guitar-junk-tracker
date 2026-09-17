@@ -52,20 +52,28 @@ Database migrations run automatically on start.
 
 ## Configuration
 
-All optional — the defaults work out of the box. Set these in the
-`environment:` block of `docker-compose.yml` (or a `.env` file).
+Docker compose sets working defaults. Set these in the `environment:` block
+of `docker-compose.yml` (or a `.env` file). Password-reset emails also need
+`APP_PUBLIC_ORIGIN`; compose sets it to `http://localhost:3131`. Local
+`npm run dev` should set `APP_PUBLIC_ORIGIN=http://localhost:3000`.
 
-| Variable         | Default                        | Purpose                                                        |
-| ---------------- | ------------------------------- | -------------------------------------------------------------- |
-| `PORT`           | `3131`                          | Port the app listens on (match the `ports:` mapping).          |
-| `DATABASE_URL`   | `file:/data/guitar-tracker.db` | SQLite database file location.                                 |
-| `PHOTOS_DIR`     | `/data/photos`                 | Where uploaded photos are written.                             |
-| `COOKIE_SECURE`  | unset                           | Set to `1` when serving over HTTPS so session cookies are secure-only. |
-| `SHOWCASE_EMAIL` | unset                           | Email of the user whose collection appears on the guest landing page (defaults to the first admin). |
+| Variable            | Default                        | Purpose                                                        |
+| ------------------- | ------------------------------- | -------------------------------------------------------------- |
+| `PORT`              | `3131`                          | Port the app listens on (match the `ports:` mapping).          |
+| `DATABASE_URL`      | `file:/data/guitar-tracker.db` | SQLite database file location.                                 |
+| `PHOTOS_DIR`        | `/data/photos`                 | Where uploaded photos are written.                             |
+| `APP_PUBLIC_ORIGIN` | `http://localhost:3131` in Docker | Public origin used in password-reset emails. Origin only (no path). Change this to the URL you actually open. |
+| `COOKIE_SECURE`     | unset                           | Set to `1` when serving over HTTPS so session cookies are secure-only. |
+| `SHOWCASE_EMAIL`    | unset                           | Email of the user whose collection appears on the guest landing page (defaults to the first admin). |
 
 Email (for password resets) is optional and configured **in the app** under
-Admin → Settings (SMTP host/port/credentials) — no environment variables
-needed.
+Admin → Settings (SMTP host/port/credentials). Reset links are built from
+`APP_PUBLIC_ORIGIN` only — never from the incoming request or `X-Forwarded-*`
+headers. If SMTP is configured but `APP_PUBLIC_ORIGIN` is missing or invalid,
+password reset returns an error instead of sending a link.
+
+For local development (`npm run dev`), set `APP_PUBLIC_ORIGIN=http://localhost:3000`
+in `.env` (see `.env.example`).
 
 ### Accounts
 
@@ -105,7 +113,7 @@ Useful scripts:
 
 ```bash
 npm run lint       # eslint
-npm test           # unit tests (parser, privacy, categories, CSV, rate limits)
+npm test           # unit tests (parser, privacy, categories, CSV, rate limits, password reset)
 npm run build      # production build
 npm run gate       # lint + test + build
 ```

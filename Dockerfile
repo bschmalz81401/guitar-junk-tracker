@@ -18,7 +18,9 @@ RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3131
-# Defaults match docker-compose.yml (override via env / compose).
+# Defaults match docker-compose.yml for database and photos (override via env).
+# APP_PUBLIC_ORIGIN is set in compose; a bare `docker run` fails closed for
+# password-reset emails until it is provided.
 ENV DATABASE_URL=file:/data/guitar-tracker.db
 ENV PHOTOS_DIR=/data/photos
 
