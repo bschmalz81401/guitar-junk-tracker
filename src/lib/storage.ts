@@ -27,12 +27,12 @@ const CONTENT_TYPE_EXTENSIONS: Record<string, string> = {
 };
 
 export async function savePhotoFromUrl(sourceUrl: string): Promise<string> {
-  const { response, finalUrl, body } = await safeFetch(sourceUrl, {
+  const { headers, finalUrl, body } = await safeFetch(sourceUrl, {
     maxBytes: MAX_DOWNLOAD_BYTES,
     accept: "image/*,*/*;q=0.8",
   });
 
-  const contentType = (response.headers.get("content-type") || "").split(";")[0].trim();
+  const contentType = (headers.get("content-type") || "").split(";")[0].trim();
   if (!contentType.startsWith("image/")) {
     throw new Error("That URL didn't point to an image");
   }

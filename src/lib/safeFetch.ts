@@ -1,44 +1,21 @@
+import http from "node:http";
+import https from "node:https";
+import { isIP } from "node:net";
+import {
+  defaultLookup,
+  normalizeHostname,
+  parseHttpUrl,
+  resolvePublicAddresses,
+  type LookupFn,
+  type ResolvedAddress,
+} from "@/lib/safeDestination";
+
+export { assertSafeUrl } from "@/lib/safeDestination";
+
 const MAX_REDIRECTS = 5;
 
 const BROWSER_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
-
-function isBlockedHost(hostname: string): boolean {
-  const h = hostname.toLowerCase();
-  if (h === "localhost" || h === "0.0.0.0" || h === "::1" || h.endsWith(".local")) return true;
-  if (h === "[::1]" || h.startsWith("[fc") || h.startsWith("[fd") || h.startsWith("[fe80")) {
-    return true;
-  }
-
-  const ipv4 = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (ipv4) {
-    const a = Number(ipv4[1]);
-    const b = Number(ipv4[2]);
-    if (a === 0 || a === 127) return true;
-    if (a === 10) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 169 && b === 254) return true;
-    if (a >= 224) return true;
-  }
-  return false;
-}
-
-export function assertSafeUrl(sourceUrl: string): URL {
-  let parsed: URL;
-  try {
-    parsed = new URL(sourceUrl);
-  } catch {
-    throw new Error("That doesn't look like a valid URL");
-  }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new Error("Only http/https URLs are supported");
-  }
-  if (isBlockedHost(parsed.hostname)) {
-    throw new Error("That URL points to a restricted address");
-  }
-  return parsed;
-}
 
 function mergeCookies(existing: string | undefined, setCookieHeaders: string[]): string {
   const jar = new Map<string, string>();
@@ -49,7 +26,6 @@ function mergeCookies(existing: string | undefined, setCookieHeaders: string[]):
     }
   }
   for (const header of setCookieHeaders) {
-    // "name=value; Path=/; HttpOnly" → name=value
     const first = header.split(";")[0]?.trim();
     if (!first) continue;
     const eq = first.indexOf("=");
@@ -58,18 +34,112 @@ function mergeCookies(existing: string | undefined, setCookieHeaders: string[]):
   return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
 }
 
-function getSetCookieHeaders(response: Response): string[] {
-  // Node/undici supports getSetCookie(); fall back to single header.
-  const anyHeaders = response.headers as Headers & { getSetCookie?: () => string[] };
+function getSetCookieHeaders(headers: Headers): string[] {
+  const anyHeaders = headers as Headers & { getSetCookie?: () => string[] };
   if (typeof anyHeaders.getSetCookie === "function") {
     return anyHeaders.getSetCookie();
   }
-  const single = response.headers.get("set-cookie");
+  const single = headers.get("set-cookie");
   return single ? [single] : [];
 }
 
+function nodeHeadersToHeaders(raw: http.IncomingHttpHeaders): Headers {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(raw)) {
+    if (value === undefined) continue;
+    if (key === "set-cookie") {
+      const list = Array.isArray(value) ? value : [value];
+      for (const cookie of list) headers.append("set-cookie", cookie);
+    } else if (Array.isArray(value)) {
+      headers.set(key, value.join(", "));
+    } else {
+      headers.set(key, value);
+    }
+  }
+  return headers;
+}
+
+export type HopResponse = {
+  status: number;
+  headers: Headers;
+  body: Buffer;
+};
+
+export type TransportRequest = {
+  url: URL;
+  addresses: ResolvedAddress[];
+  headers: Record<string, string>;
+  signal: AbortSignal;
+  maxBytes: number;
+};
+
+export type TransportFn = (request: TransportRequest) => Promise<HopResponse>;
+
+export async function defaultTransport(request: TransportRequest): Promise<HopResponse> {
+  const addr = request.addresses[0];
+  if (!addr) {
+    throw new Error("Could not reach that URL");
+  }
+
+  const { url, headers, signal, maxBytes } = request;
+  const lib = url.protocol === "https:" ? https : http;
+  const port = url.port ? Number(url.port) : url.protocol === "https:" ? 443 : 80;
+  const path = `${url.pathname}${url.search}` || "/";
+
+  const reqOptions: https.RequestOptions = {
+    protocol: url.protocol,
+    hostname: addr.address,
+    port,
+    method: "GET",
+    path,
+    headers: { ...headers, Host: url.host },
+    signal,
+    setHost: false,
+  };
+  const sni = normalizeHostname(url.hostname);
+  if (url.protocol === "https:" && !isIP(sni)) {
+    reqOptions.servername = sni;
+  }
+
+  return new Promise((resolve, reject) => {
+    const fail = () => reject(new Error("Could not reach that URL"));
+    const req = lib.request(reqOptions, (res) => {
+      const status = res.statusCode || 0;
+      const hopHeaders = nodeHeadersToHeaders(res.headers);
+      if (status >= 300 && status < 400) {
+        res.resume();
+        resolve({ status, headers: hopHeaders, body: Buffer.alloc(0) });
+        return;
+      }
+      const declared = Number(res.headers["content-length"] || 0);
+      if (declared > maxBytes) {
+        res.destroy();
+        reject(new Error("Remote response is too large"));
+        return;
+      }
+      const chunks: Buffer[] = [];
+      let total = 0;
+      res.on("data", (chunk: Buffer) => {
+        total += chunk.length;
+        if (total > maxBytes) {
+          res.destroy();
+          reject(new Error("Remote response is too large"));
+          return;
+        }
+        chunks.push(chunk);
+      });
+      res.on("end", () => {
+        resolve({ status, headers: hopHeaders, body: Buffer.concat(chunks) });
+      });
+      res.on("error", fail);
+    });
+    req.on("error", fail);
+    req.end();
+  });
+}
+
 export interface SafeFetchResult {
-  response: Response;
+  headers: Headers;
   finalUrl: URL;
   body: Buffer;
   status: number;
@@ -89,21 +159,26 @@ export interface SafeFetchOptions {
   allowHttpErrors?: boolean;
   /** Prefer a full browser-like header set (for HTML product pages). */
   browserLike?: boolean;
+  lookup?: LookupFn;
+  transport?: TransportFn;
 }
 
 /**
- * Fetch a remote URL with private-host blocking and manual redirect walking
- * so each hop is re-checked. Caps response body size. Carries cookies across
- * redirects so sites that set a session cookie mid-redirect still work.
+ * Fetch a remote URL after resolving and rejecting non-public destinations.
+ * Redirects are followed manually so every hop is re-checked. Connections are
+ * pinned to the addresses that already passed the policy (no second DNS lookup
+ * at connect time). Caps response body size and carries cookies across hops.
  */
 export async function safeFetch(
   sourceUrl: string,
   options: SafeFetchOptions
 ): Promise<SafeFetchResult> {
-  let current = assertSafeUrl(sourceUrl);
-  let response: Response | null = null;
+  let current = parseHttpUrl(sourceUrl);
+  let hopResponse: HopResponse | null = null;
   const timeoutMs = options.timeoutMs ?? 15000;
   const userAgent = options.userAgent ?? BROWSER_UA;
+  const lookup = options.lookup ?? defaultLookup;
+  const transport = options.transport ?? defaultTransport;
   let cookie = "";
 
   const baseHeaders: Record<string, string> = options.browserLike
@@ -134,11 +209,11 @@ export async function safeFetch(
   }
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const addresses = await resolvePublicAddresses(current, lookup);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const headers: Record<string, string> = { ...baseHeaders };
     if (cookie) headers.Cookie = cookie;
-    // After the first hop, this is a redirect follow from the previous host.
     if (hop > 0) {
       headers["Sec-Fetch-Site"] = "same-origin";
       headers["Sec-Fetch-Mode"] = "navigate";
@@ -146,73 +221,50 @@ export async function safeFetch(
     }
 
     try {
-      response = await fetch(current, {
-        signal: controller.signal,
-        redirect: "manual",
+      hopResponse = await transport({
+        url: current,
+        addresses,
         headers,
+        signal: controller.signal,
+        maxBytes: options.maxBytes,
       });
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.message === "Remote response is too large") {
+        throw err;
+      }
       throw new Error("Could not reach that URL");
     } finally {
       clearTimeout(timeout);
     }
 
-    cookie = mergeCookies(cookie, getSetCookieHeaders(response));
+    cookie = mergeCookies(cookie, getSetCookieHeaders(hopResponse.headers));
 
-    if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get("location");
+    if (hopResponse.status >= 300 && hopResponse.status < 400) {
+      const location = hopResponse.headers.get("location");
       if (!location) {
         throw new Error("That URL returned a redirect without a destination");
       }
-      current = assertSafeUrl(new URL(location, current).toString());
+      current = parseHttpUrl(new URL(location, current).toString());
       continue;
     }
     break;
   }
 
-  if (!response) {
+  if (!hopResponse) {
     throw new Error("Could not reach that URL");
   }
-  if (response.status >= 300 && response.status < 400) {
+  if (hopResponse.status >= 300 && hopResponse.status < 400) {
     throw new Error("Too many redirects");
   }
-  if (!response.ok && !options.allowHttpErrors) {
-    throw new Error(httpErrorMessage(response.status));
-  }
-
-  const declaredLength = Number(response.headers.get("content-length") || 0);
-  if (declaredLength > options.maxBytes) {
-    throw new Error("Remote response is too large");
-  }
-
-  if (!response.body) {
-    if (!response.ok && options.allowHttpErrors) {
-      return { response, finalUrl: current, body: Buffer.alloc(0), status: response.status };
-    }
-    throw new Error("That URL returned an empty response");
-  }
-
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (value) {
-      total += value.byteLength;
-      if (total > options.maxBytes) {
-        await reader.cancel();
-        throw new Error("Remote response is too large");
-      }
-      chunks.push(value);
-    }
+  if (hopResponse.status >= 400 && !options.allowHttpErrors) {
+    throw new Error(httpErrorMessage(hopResponse.status));
   }
 
   return {
-    response,
+    headers: hopResponse.headers,
     finalUrl: current,
-    body: Buffer.concat(chunks),
-    status: response.status,
+    body: hopResponse.body,
+    status: hopResponse.status,
   };
 }
 
@@ -251,6 +303,6 @@ export function looksLikeBotWall(status: number, bodyText: string): boolean {
     sample.includes("bot detection") ||
     sample.includes("datadome") ||
     sample.includes("perimeterx") ||
-    /captcha/.test(sample) && /blocked|denied|access|verify/.test(sample)
+    (/captcha/.test(sample) && /blocked|denied|access|verify/.test(sample))
   );
 }

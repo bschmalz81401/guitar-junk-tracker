@@ -25,7 +25,7 @@ export async function fetchProductPage(sourceUrl: string): Promise<FetchedPage> 
     });
     const html = result.body.toString("utf8");
     if (!looksLikeBotWall(result.status, html) && html.trim().length > 200) {
-      const contentType = (result.response.headers.get("content-type") || "")
+      const contentType = (result.headers.get("content-type") || "")
         .split(";")[0]
         .trim()
         .toLowerCase();
