@@ -15,6 +15,9 @@ services:
       - DATABASE_URL=file:/data/guitar-tracker.db
       - PHOTOS_DIR=/data/photos
       - PORT=3131
+      # Public URL used in password-reset emails. Change this to the URL you
+      # actually open (LAN IP or HTTPS hostname behind a reverse proxy).
+      - APP_PUBLIC_ORIGIN=http://localhost:3131
     # Host ./data is created automatically on first `compose up` if missing.
     volumes:
       - type: bind

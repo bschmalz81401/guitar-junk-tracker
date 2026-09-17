@@ -3,8 +3,12 @@
 ## Purpose and status
 
 This document preserves the remediation plan from the independent review of
-`main` at `638d550` (2026-08-12). It is a plan only: no remediation work has
-been implemented yet.
+`main` at `638d550` (2026-08-12).
+
+Implementation status:
+
+- Phase 1 (reset-link integrity): in progress on `fix/reset-link-origin`
+- Phases 2–6: not started
 
 The review ran against the current codebase with `npm run gate` passing (lint,
 unit suites, and production build). The build currently emits warnings about
