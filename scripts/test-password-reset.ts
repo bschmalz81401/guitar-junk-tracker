@@ -6,7 +6,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { NextRequest } from "next/server";
-import { publicAppOrigin, resetPasswordUrl } from "../src/lib/passwordReset";
+import {
+  passwordResetMailContent,
+  publicAppOrigin,
+  resetPasswordUrl,
+  sendPasswordResetForUser,
+} from "../src/lib/passwordReset";
 
 const root = join(__dirname, "..");
 let failed = 0;
@@ -104,14 +109,18 @@ check("rejects a fragment on the origin", () => {
   );
 });
 
-check("reset URL is built from the configured origin and token", () => {
+check("reset URL is built from APP_PUBLIC_ORIGIN and the token", () => {
   assert.equal(
-    resetPasswordUrl("abc123", "https://gear.example.com"),
+    resetPasswordUrl("abc123", env("https://gear.example.com")),
     "https://gear.example.com/reset-password?token=abc123"
   );
 });
 
-check("forwarded host/proto cannot change the configured origin", () => {
+check("sendPasswordResetForUser does not accept a request-derived origin", () => {
+  assert.equal(sendPasswordResetForUser.length, 1);
+});
+
+check("reset mail uses APP_PUBLIC_ORIGIN even when a request carries a forwarded host", () => {
   const configured = env("https://gear.example.com");
   const request = new NextRequest("http://localhost/api/auth/forgot-password", {
     method: "POST",
@@ -122,12 +131,18 @@ check("forwarded host/proto cannot change the configured origin", () => {
       origin: "https://evil.example",
     },
   });
-  assert.equal(publicAppOrigin(configured), "https://gear.example.com");
-  assert.notEqual(
-    publicAppOrigin(configured),
-    `${request.headers.get("x-forwarded-proto")}://${request.headers.get("x-forwarded-host")}`
+  const mail = passwordResetMailContent("deadbeef", configured);
+  assert.equal(
+    mail.resetUrl,
+    "https://gear.example.com/reset-password?token=deadbeef"
   );
-  assert.notEqual(publicAppOrigin(configured), new URL(request.url).origin);
+  assert.equal(mail.text.includes("https://gear.example.com/reset-password?token=deadbeef"), true);
+  assert.equal(mail.html.includes("https://gear.example.com/reset-password?token=deadbeef"), true);
+  assert.equal(mail.resetUrl.includes("evil.example"), false);
+  assert.equal(mail.text.includes("evil.example"), false);
+  assert.equal(mail.html.includes("evil.example"), false);
+  assert.notEqual(mail.resetUrl, `${request.headers.get("x-forwarded-proto")}://${request.headers.get("x-forwarded-host")}/reset-password?token=deadbeef`);
+  assert.notEqual(mail.resetUrl.startsWith(new URL(request.url).origin), true);
 });
 
 function assertRouteIgnoresForwardedHeaders(relativePath: string) {
@@ -162,6 +177,25 @@ check("passwordReset helper no longer derives origin from the request", () => {
   assert.equal(src.includes("x-forwarded-host"), false);
   assert.equal(src.includes("x-forwarded-proto"), false);
   assert.equal(src.includes("requestOrigin"), false);
+  assert.match(src, /passwordResetMailContent\(rawToken\)/);
+});
+
+check("forgot-password calls sendPasswordResetForUser with only the user", () => {
+  const src = readFileSync(
+    join(root, "src/app/api/auth/forgot-password/route.ts"),
+    "utf8"
+  );
+  assert.match(src, /sendPasswordResetForUser\(\s*user\s*\)/);
+  assert.equal(/sendPasswordResetForUser\s*\([^;]*request/.test(src), false);
+});
+
+check("admin reset calls sendPasswordResetForUser with only the user", () => {
+  const src = readFileSync(
+    join(root, "src/app/api/admin/users/[id]/route.ts"),
+    "utf8"
+  );
+  assert.match(src, /sendPasswordResetForUser\(\s*\{/);
+  assert.equal(/sendPasswordResetForUser\s*\([^;]*request/.test(src), false);
 });
 
 if (failed > 0) {

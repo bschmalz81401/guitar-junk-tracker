@@ -52,8 +52,10 @@ Database migrations run automatically on start.
 
 ## Configuration
 
-All optional — the defaults work out of the box. Set these in the
-`environment:` block of `docker-compose.yml` (or a `.env` file).
+Docker compose sets working defaults. Set these in the `environment:` block
+of `docker-compose.yml` (or a `.env` file). Password-reset emails also need
+`APP_PUBLIC_ORIGIN`; compose sets it to `http://localhost:3131`. Local
+`npm run dev` should set `APP_PUBLIC_ORIGIN=http://localhost:3000`.
 
 | Variable            | Default                        | Purpose                                                        |
 | ------------------- | ------------------------------- | -------------------------------------------------------------- |

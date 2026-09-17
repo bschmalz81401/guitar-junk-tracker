@@ -46,9 +46,21 @@ export function publicAppOrigin(
 
 export function resetPasswordUrl(
   rawToken: string,
-  origin: string = publicAppOrigin()
+  env: NodeJS.ProcessEnv = process.env
 ): string {
-  return `${origin}/reset-password?token=${rawToken}`;
+  return `${publicAppOrigin(env)}/reset-password?token=${rawToken}`;
+}
+
+export function passwordResetMailContent(
+  rawToken: string,
+  env: NodeJS.ProcessEnv = process.env
+): { resetUrl: string; text: string; html: string } {
+  const resetUrl = resetPasswordUrl(rawToken, env);
+  return {
+    resetUrl,
+    text: `Reset your password using this link (valid for 1 hour):\n\n${resetUrl}\n\nIf you did not request this, you can ignore this email.`,
+    html: `<p>Reset your password using this link (valid for 1 hour):</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>If you did not request this, you can ignore this email.</p>`,
+  };
 }
 
 /**
@@ -59,7 +71,7 @@ export async function sendPasswordResetForUser(user: {
   id: number;
   email: string;
 }): Promise<void> {
-  const origin = publicAppOrigin();
+  publicAppOrigin();
   const settings = await getSettings();
   if (!isSmtpConfigured(settings)) {
     throw new Error("SMTP is not configured. Set it up in Admin first.");
@@ -77,12 +89,11 @@ export async function sendPasswordResetForUser(user: {
     },
   });
 
-  const resetUrl = resetPasswordUrl(rawToken, origin);
-
+  const mail = passwordResetMailContent(rawToken);
   await sendMail(settings, {
     to: user.email,
     subject: "Reset your Guitar Junk Tracker password",
-    text: `Reset your password using this link (valid for 1 hour):\n\n${resetUrl}\n\nIf you did not request this, you can ignore this email.`,
-    html: `<p>Reset your password using this link (valid for 1 hour):</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>If you did not request this, you can ignore this email.</p>`,
+    text: mail.text,
+    html: mail.html,
   });
 }
