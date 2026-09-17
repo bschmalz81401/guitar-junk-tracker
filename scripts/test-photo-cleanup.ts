@@ -137,7 +137,7 @@ async function main() {
     assert.equal(await readFile(abs, "utf8"), "keep");
   });
 
-  await check("invalid filenames are not unlinked", async () => {
+  await check("invalid filenames are not unlinked and are dropped", async () => {
     const jobs: CleanupJob[] = [{ id: 1, filename: "../etc/passwd" }];
     const store = memoryStore(jobs);
     let unlinked: string | null = null;
@@ -149,8 +149,9 @@ async function main() {
       },
     });
     assert.equal(unlinked, null);
-    assert.equal(result.failed, 1);
-    assert.equal(jobs.length, 1);
+    assert.equal(result.failed, 0);
+    assert.equal(result.skipped, 1);
+    assert.equal(jobs.length, 0);
   });
 
   await check("user delete queues cleanup before cascading photos", () => {
@@ -160,6 +161,36 @@ async function main() {
     );
     assert.match(src, /queuePhotosThenDeleteUser\(userId\)/);
     assert.equal(src.includes("prisma.user.delete"), false);
+  });
+
+  await check("queuePhotosThenDeleteUser copies filenames before deleting the user", () => {
+    const src = readFileSync(
+      join(__dirname, "..", "src/lib/photoCleanupDb.ts"),
+      "utf8"
+    );
+    const fnStart = src.indexOf("export async function queuePhotosThenDeleteUser");
+    assert.ok(fnStart >= 0);
+    const fn = src.slice(fnStart);
+    const photoFind = fn.indexOf("tx.photo.findMany");
+    const jobWrite = fn.indexOf("tx.photoCleanupJob.createMany");
+    const userDelete = fn.indexOf("tx.user.delete");
+    assert.ok(photoFind >= 0, "must read photos");
+    assert.ok(jobWrite > photoFind, "must write jobs after reading photos");
+    assert.ok(userDelete > jobWrite, "must delete the user after writing jobs");
+  });
+
+  await check("delete response includes leftover cleanup counts", () => {
+    const src = readFileSync(
+      join(__dirname, "..", "src/app/api/admin/users/[id]/route.ts"),
+      "utf8"
+    );
+    assert.match(src, /success:\s*true,\s*cleanup/);
+  });
+
+  await check("startup photo cleanup does not block register()", () => {
+    const src = readFileSync(join(__dirname, "..", "src/instrumentation.ts"), "utf8");
+    assert.match(src, /void import\("@\/lib\/photoCleanupDb"\)/);
+    assert.equal(/await processPendingPhotoCleanup/.test(src), false);
   });
 
   await check("cleanup jobs have no foreign key to User or Photo", () => {

@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
 import { sendPasswordResetForUser } from "@/lib/passwordReset";
 import {
+  pendingPhotoCleanupCount,
   processPendingPhotoCleanup,
   queuePhotosThenDeleteUser,
 } from "@/lib/photoCleanupDb";
@@ -175,11 +176,22 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  await queuePhotosThenDeleteUser(userId);
+  const queued = await queuePhotosThenDeleteUser(userId);
+  let cleanup = {
+    removed: 0,
+    failed: 0,
+    skipped: 0,
+    pending: queued,
+  };
   try {
-    await processPendingPhotoCleanup();
+    const result = await processPendingPhotoCleanup();
+    cleanup = {
+      ...result,
+      pending: await pendingPhotoCleanupCount(),
+    };
   } catch (err) {
     console.error("[photo-cleanup] after user delete", err);
+    cleanup.pending = await pendingPhotoCleanupCount().catch(() => queued);
   }
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, cleanup });
 }

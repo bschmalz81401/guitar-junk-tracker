@@ -162,11 +162,21 @@ export default function AdminPanel({
         setDeletingUser(false);
         return;
       }
-      setMessage(`Deleted ${email}`);
+      const leftover = Number(body?.cleanup?.pending) || 0;
+      const failedFiles = Number(body?.cleanup?.failed) || 0;
+      setPendingCleanup(leftover);
+      if (failedFiles > 0 || leftover > 0) {
+        setError(
+          `Deleted ${email}. ${leftover || failedFiles} leftover photo file(s) could not be removed; retry from Photo cleanup.`
+        );
+      } else {
+        setMessage(`Deleted ${email}`);
+      }
       if (editingId === id) setEditingId(null);
       setDeleteTarget(null);
       setDeletingUser(false);
       await reloadUsers();
+      router.refresh();
     } catch {
       setError("Couldn't reach the server.");
       setDeletingUser(false);

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { access, constants, mkdir } from "fs/promises";
 import { prisma } from "@/lib/prisma";
-import { PHOTOS_DIR } from "@/lib/storage";
+import { photosDir } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -28,8 +28,9 @@ export async function GET() {
 
   try {
     // Match entrypoint: ensure the photos dir exists, then verify R/W.
-    await mkdir(PHOTOS_DIR, { recursive: true });
-    await access(PHOTOS_DIR, constants.R_OK | constants.W_OK);
+    const dir = photosDir();
+    await mkdir(dir, { recursive: true });
+    await access(dir, constants.R_OK | constants.W_OK);
     checks.photos = "up";
   } catch {
     checks.photos = "down";

@@ -20,6 +20,21 @@ function errorMessage(err: unknown): string {
   return "Photo cleanup failed";
 }
 
+function isMissingRecord(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const code = "code" in err ? String((err as { code: unknown }).code) : "";
+  if (code === "P2025") return true;
+  return err instanceof Error && /record to delete does not exist/i.test(err.message);
+}
+
+async function dropJob(store: CleanupStore, id: number): Promise<void> {
+  try {
+    await store.deleteJob(id);
+  } catch (err) {
+    if (!isMissingRecord(err)) throw err;
+  }
+}
+
 /**
  * Process queued photo-file deletions. Idempotent: a missing file is success.
  * Never unlinks a name still referenced by a Photo row, or a path outside the
@@ -36,7 +51,7 @@ export async function runPhotoCleanup(opts: {
   for (const job of jobs) {
     try {
       if (await opts.store.isFilenameInUse(job.filename)) {
-        await opts.store.deleteJob(job.id);
+        await dropJob(opts.store, job.id);
         result.skipped += 1;
         continue;
       }
@@ -44,15 +59,22 @@ export async function runPhotoCleanup(opts: {
         root: opts.photosDir,
         unlinkFn: opts.unlinkFn,
       });
-      await opts.store.deleteJob(job.id);
+      await dropJob(opts.store, job.id);
       if (outcome === "deleted") result.removed += 1;
       else result.skipped += 1;
     } catch (err) {
+      if (err instanceof Error && err.message === "Invalid photo filename") {
+        await dropJob(opts.store, job.id);
+        result.skipped += 1;
+        continue;
+      }
       result.failed += 1;
       try {
         await opts.store.markFailed(job.id, errorMessage(err));
       } catch (markErr) {
-        console.error("[photo-cleanup] could not record failure", markErr);
+        if (!isMissingRecord(markErr)) {
+          console.error("[photo-cleanup] could not record failure", markErr);
+        }
       }
     }
   }

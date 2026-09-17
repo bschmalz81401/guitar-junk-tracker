@@ -30,11 +30,9 @@ export async function queuePhotosThenDeleteUser(userId: number): Promise<number>
       select: { filePath: true },
     });
     const filenames = [...new Set(photos.map((p) => p.filePath))];
-    for (const filename of filenames) {
-      await tx.photoCleanupJob.upsert({
-        where: { filename },
-        create: { filename },
-        update: {},
+    if (filenames.length > 0) {
+      await tx.photoCleanupJob.createMany({
+        data: filenames.map((filename) => ({ filename })),
       });
     }
     await tx.user.delete({ where: { id: userId } });
