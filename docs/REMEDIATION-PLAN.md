@@ -9,7 +9,8 @@ Implementation status:
 
 - Phase 1 (reset-link integrity): done in `a98901f` (PR #1)
 - Phase 2 (safe outbound URL fetching): done in `14b0f73` (PR #2)
-- Phases 3–6: not started
+- Phase 3 (durable account-deletion file cleanup): in progress on `fix/user-delete-photo-cleanup`
+- Phases 4–6: not started
 
 The review ran against the current codebase with `npm run gate` passing (lint,
 unit suites, and production build). The build currently emits warnings about

@@ -113,7 +113,7 @@ Useful scripts:
 
 ```bash
 npm run lint       # eslint
-npm test           # unit tests (parser, privacy, categories, CSV, rate limits, password reset, outbound fetch)
+npm test           # unit tests (parser, privacy, categories, CSV, rate limits, password reset, outbound fetch, photo cleanup)
 npm run build      # production build
 npm run gate       # lint + test + build
 ```

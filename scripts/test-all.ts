@@ -12,6 +12,7 @@ const scripts = [
   "test-rate-limit.ts",
   "test-password-reset.ts",
   "test-safe-fetch.ts",
+  "test-photo-cleanup.ts",
   "test-parser.ts",
 ];
 const root = join(__dirname, "..");

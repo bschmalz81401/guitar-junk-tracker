@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
 import { sendPasswordResetForUser } from "@/lib/passwordReset";
+import {
+  processPendingPhotoCleanup,
+  queuePhotosThenDeleteUser,
+} from "@/lib/photoCleanupDb";
 import { prisma } from "@/lib/prisma";
 import { normalizeUsername, validateUsername } from "@/lib/username";
 
@@ -171,6 +175,11 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  await prisma.user.delete({ where: { id: userId } });
+  await queuePhotosThenDeleteUser(userId);
+  try {
+    await processPendingPhotoCleanup();
+  } catch (err) {
+    console.error("[photo-cleanup] after user delete", err);
+  }
   return NextResponse.json({ success: true });
 }
