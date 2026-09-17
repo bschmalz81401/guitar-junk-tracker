@@ -10,7 +10,10 @@ import {
   type ResolvedAddress,
 } from "@/lib/safeDestination";
 
-export { assertSafeUrl } from "@/lib/safeDestination";
+export {
+  assertSafeUrl,
+  isRestrictedAddressError,
+} from "@/lib/safeDestination";
 
 const MAX_REDIRECTS = 5;
 

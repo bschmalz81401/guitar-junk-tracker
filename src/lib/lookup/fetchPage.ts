@@ -1,4 +1,10 @@
-import { assertSafeUrl, httpErrorMessage, looksLikeBotWall, safeFetch } from "@/lib/safeFetch";
+import {
+  assertSafeUrl,
+  httpErrorMessage,
+  isRestrictedAddressError,
+  looksLikeBotWall,
+  safeFetch,
+} from "@/lib/safeFetch";
 import { fieldsFromMarkdown } from "@/lib/lookup/paste";
 
 const MAX_HTML_BYTES = 2 * 1024 * 1024;
@@ -45,6 +51,7 @@ export async function fetchProductPage(sourceUrl: string): Promise<FetchedPage> 
         "That site served a bot-check page instead of the product listing.";
     }
   } catch (err) {
+    if (isRestrictedAddressError(err)) throw err;
     lastBlockMessage = err instanceof Error ? err.message : "Could not reach that URL";
   }
 

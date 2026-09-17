@@ -3,6 +3,10 @@
  * Run: npx tsx scripts/test-safe-fetch.ts
  */
 import assert from "node:assert/strict";
+import http from "node:http";
+import https from "node:https";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   assertSafeUrl,
   embeddedIPv4,
@@ -11,6 +15,7 @@ import {
   resolvePublicAddresses,
 } from "../src/lib/safeDestination";
 import {
+  defaultTransport,
   safeFetch,
   type HopResponse,
   type TransportRequest,
@@ -73,9 +78,13 @@ const blockedV6 = [
   "::ffff:127.0.0.1",
   "::ffff:10.0.0.1",
   "::ffff:7f00:1",
+  "::7f00:1",
+  "::ffff:0:7f00:1",
+  "::ffff:0:127.0.0.1",
   "64:ff9b::10.0.0.1",
   "64:ff9b::7f00:1",
   "2002:7f00:1::",
+  "fec0::1",
 ];
 
 const allowedV6 = ["2001:4860:4860::8888", "2606:4700:4700::1111", "2002:808:808::"];
@@ -105,9 +114,12 @@ await check("allows ordinary public IPv6 addresses", () => {
   }
 });
 
-await check("extracts IPv4 from mapped, NAT64, and 6to4 forms", () => {
+await check("extracts IPv4 from mapped, SIIT, compatible, NAT64, and 6to4 forms", () => {
   assert.equal(embeddedIPv4("::ffff:127.0.0.1"), "127.0.0.1");
   assert.equal(embeddedIPv4("::ffff:7f00:1"), "127.0.0.1");
+  assert.equal(embeddedIPv4("::7f00:1"), "127.0.0.1");
+  assert.equal(embeddedIPv4("::ffff:0:7f00:1"), "127.0.0.1");
+  assert.equal(embeddedIPv4("::ffff:0:127.0.0.1"), "127.0.0.1");
   assert.equal(embeddedIPv4("64:ff9b::10.0.0.1"), "10.0.0.1");
   assert.equal(embeddedIPv4("2002:7f00:1::"), "127.0.0.1");
   assert.equal(embeddedIPv4("2002:808:808::"), "8.8.8.8");
@@ -125,6 +137,8 @@ await check("assertSafeUrl rejects local IP literals and schemes", () => {
   assert.throws(() => assertSafeUrl("http://127.0.0.1/"), /restricted address/);
   assert.throws(() => assertSafeUrl("http://[::1]/"), /restricted address/);
   assert.throws(() => assertSafeUrl("http://[::ffff:127.0.0.1]/"), /restricted address/);
+  assert.throws(() => assertSafeUrl("http://[::127.0.0.1]/"), /restricted address/);
+  assert.throws(() => assertSafeUrl("http://[::ffff:0:127.0.0.1]/"), /restricted address/);
   assert.throws(() => assertSafeUrl("http://169.254.169.254/latest"), /restricted address/);
   assert.throws(() => assertSafeUrl("http://localhost/"), /restricted address/);
   assert.throws(() => assertSafeUrl("ftp://example.com/"), /http\/https/);
@@ -317,6 +331,86 @@ await check("rejects file and javascript redirect targets", async () => {
       }),
     /http\/https/
   );
+});
+
+type CapturedRequest = {
+  hostname?: string;
+  servername?: string;
+  setHost?: boolean;
+  hostHeader?: string;
+};
+
+function captureOptions(opts: unknown): CapturedRequest {
+  if (!opts || typeof opts !== "object" || opts instanceof URL) return {};
+  const rec = opts as https.RequestOptions;
+  const headers = rec.headers as { Host?: string } | undefined;
+  return {
+    hostname: typeof rec.hostname === "string" ? rec.hostname : undefined,
+    servername: rec.servername,
+    setHost: rec.setHost,
+    hostHeader: headers?.Host,
+  };
+}
+
+await check("defaultTransport connects to the resolved IP with the original Host", async () => {
+  let captured: CapturedRequest = {};
+  const orig = http.request;
+  http.request = ((
+    opts: http.RequestOptions | string | URL,
+    cb?: (res: http.IncomingMessage) => void
+  ) => {
+    captured = captureOptions(opts);
+    return orig({ hostname: "127.0.0.1", port: 9, path: "/", method: "GET" }, cb);
+  }) as typeof http.request;
+  try {
+    await defaultTransport({
+      url: new URL("http://cdn.example/photo.jpg"),
+      addresses: [{ address: "203.0.113.20", family: 4 }],
+      headers: { Accept: "image/*" },
+      signal: AbortSignal.abort(),
+      maxBytes: 1024,
+    }).catch(() => undefined);
+  } finally {
+    http.request = orig;
+  }
+  assert.equal(captured.hostname, "203.0.113.20");
+  assert.equal(captured.hostHeader, "cdn.example");
+  assert.equal(captured.setHost, false);
+});
+
+await check("defaultTransport sets TLS SNI to the original hostname", async () => {
+  let captured: CapturedRequest = {};
+  const orig = https.request;
+  https.request = ((
+    opts: https.RequestOptions | string | URL,
+    cb?: (res: http.IncomingMessage) => void
+  ) => {
+    captured = captureOptions(opts);
+    return orig({ hostname: "127.0.0.1", port: 9, path: "/", method: "GET" }, cb);
+  }) as typeof https.request;
+  try {
+    await defaultTransport({
+      url: new URL("https://cdn.example/photo.jpg"),
+      addresses: [{ address: "203.0.113.20", family: 4 }],
+      headers: { Accept: "image/*" },
+      signal: AbortSignal.abort(),
+      maxBytes: 1024,
+    }).catch(() => undefined);
+  } finally {
+    https.request = orig;
+  }
+  assert.equal(captured.hostname, "203.0.113.20");
+  assert.equal(captured.servername, "cdn.example");
+  assert.equal(captured.hostHeader, "cdn.example");
+});
+
+await check("product lookup does not send restricted URLs to Jina", () => {
+  const src = readFileSync(join(__dirname, "..", "src/lib/lookup/fetchPage.ts"), "utf8");
+  assert.match(src, /if \(isRestrictedAddressError\(err\)\) throw err;/);
+  const jinaIndex = src.indexOf("r.jina.ai");
+  const throwIndex = src.indexOf("isRestrictedAddressError");
+  assert.ok(throwIndex !== -1 && jinaIndex !== -1);
+  assert.ok(throwIndex < jinaIndex);
 });
 
 if (failed > 0) {
