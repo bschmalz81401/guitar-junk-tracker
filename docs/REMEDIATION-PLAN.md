@@ -8,7 +8,7 @@ This document preserves the remediation plan from the independent review of
 Implementation status:
 
 - Phase 1 (reset-link integrity): done in `a98901f` (PR #1)
-- Phase 2 (safe outbound URL fetching): in progress on `fix/outbound-fetch-ssrf`
+- Phase 2 (safe outbound URL fetching): done in `14b0f73` (PR #2)
 - Phases 3–6: not started
 
 The review ran against the current codebase with `npm run gate` passing (lint,
