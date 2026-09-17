@@ -3,16 +3,41 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { safeFetch } from "@/lib/safeFetch";
 
+export function photosDir(): string {
+  return (
+    process.env.PHOTOS_DIR ||
+    path.join(/* turbopackIgnore: true */ process.cwd(), "data", "photos")
+  );
+}
+
 /** Absolute directory where uploaded photos live (Docker: `/data/photos`). */
-export const PHOTOS_DIR =
-  process.env.PHOTOS_DIR || path.join(/* turbopackIgnore: true */ process.cwd(), "data", "photos");
+export const PHOTOS_DIR = photosDir();
+
+export function resolveStoredPhotoPath(
+  filename: string,
+  root: string = photosDir()
+): string {
+  if (!filename || filename !== path.basename(filename)) {
+    throw new Error("Invalid photo filename");
+  }
+  const base = path.basename(filename);
+  if (base === "." || base === "..") {
+    throw new Error("Invalid photo filename");
+  }
+  const resolved = path.resolve(root, base);
+  if (path.dirname(resolved) !== path.resolve(root)) {
+    throw new Error("Invalid photo filename");
+  }
+  return resolved;
+}
 
 export async function savePhoto(file: File): Promise<string> {
-  await mkdir(PHOTOS_DIR, { recursive: true });
+  const root = photosDir();
+  await mkdir(root, { recursive: true });
   const ext = path.extname(file.name) || "";
   const filename = `${randomUUID()}${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(PHOTOS_DIR, filename), buffer);
+  await writeFile(resolveStoredPhotoPath(filename, root), buffer);
   return filename;
 }
 
@@ -37,21 +62,43 @@ export async function savePhotoFromUrl(sourceUrl: string): Promise<string> {
     throw new Error("That URL didn't point to an image");
   }
 
-  await mkdir(PHOTOS_DIR, { recursive: true });
+  const root = photosDir();
+  await mkdir(root, { recursive: true });
   const ext = CONTENT_TYPE_EXTENSIONS[contentType] || path.extname(finalUrl.pathname) || "";
   const filename = `${randomUUID()}${ext}`;
-  await writeFile(path.join(PHOTOS_DIR, filename), body);
+  await writeFile(resolveStoredPhotoPath(filename, root), body);
   return filename;
+}
+
+export async function unlinkStoredPhoto(
+  filename: string,
+  opts?: {
+    root?: string;
+    unlinkFn?: (target: string) => Promise<void>;
+  }
+): Promise<"deleted" | "missing"> {
+  const target = resolveStoredPhotoPath(filename, opts?.root ?? photosDir());
+  try {
+    await (opts?.unlinkFn ?? unlink)(target);
+    return "deleted";
+  } catch (err) {
+    const code =
+      err && typeof err === "object" && "code" in err
+        ? String((err as { code: unknown }).code)
+        : "";
+    if (code === "ENOENT") return "missing";
+    throw err;
+  }
 }
 
 export async function deletePhotoFile(filename: string): Promise<void> {
   try {
-    await unlink(path.join(PHOTOS_DIR, filename));
+    await unlinkStoredPhoto(filename);
   } catch {
-    // file already gone; ignore
+    // best-effort for single-photo / item delete
   }
 }
 
 export function photoFilePath(filename: string): string {
-  return path.join(PHOTOS_DIR, filename);
+  return resolveStoredPhotoPath(filename);
 }

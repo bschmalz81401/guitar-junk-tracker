@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { pendingPhotoCleanupCount } from "@/lib/photoCleanupDb";
 import { getSettings, isSmtpConfigured } from "@/lib/settings";
 import AdminPanel from "@/components/AdminPanel";
 
@@ -9,7 +10,7 @@ export default async function AdminPage() {
   if (!user) redirect("/login?from=/admin");
   if (user.role !== "admin") redirect("/");
 
-  const [users, settings] = await Promise.all([
+  const [users, settings, pendingCleanup] = await Promise.all([
     prisma.user.findMany({
       orderBy: { createdAt: "asc" },
       select: {
@@ -24,6 +25,7 @@ export default async function AdminPage() {
       },
     }),
     getSettings(),
+    pendingPhotoCleanupCount(),
   ]);
 
   return (
@@ -44,6 +46,7 @@ export default async function AdminPage() {
           createdAt: u.createdAt.toISOString(),
           itemCount: u._count.items,
         }))}
+        initialPendingCleanup={pendingCleanup}
         initialSettings={{
           allowSignup: settings.allowSignup,
           showcaseEmail: settings.showcaseEmail ?? "",

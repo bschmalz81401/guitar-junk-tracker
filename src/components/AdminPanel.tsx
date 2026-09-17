@@ -35,10 +35,12 @@ export default function AdminPanel({
   currentUserId,
   initialUsers,
   initialSettings,
+  initialPendingCleanup,
 }: {
   currentUserId: number;
   initialUsers: UserRow[];
   initialSettings: SettingsState;
+  initialPendingCleanup: number;
 }) {
   const router = useRouter();
   const [users, setUsers] = useState<UserRow[]>(initialUsers);
@@ -72,6 +74,8 @@ export default function AdminPanel({
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; email: string } | null>(null);
   const [deletingUser, setDeletingUser] = useState(false);
   const [resetTarget, setResetTarget] = useState<{ id: number; email: string } | null>(null);
+  const [pendingCleanup, setPendingCleanup] = useState(initialPendingCleanup);
+  const [retryingCleanup, setRetryingCleanup] = useState(false);
 
   async function reloadUsers() {
     const res = await fetch("/api/admin/users");
@@ -115,6 +119,36 @@ export default function AdminPanel({
     }
   }
 
+  async function retryPhotoCleanup() {
+    setRetryingCleanup(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin/photo-cleanup", { method: "POST" });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(body?.error || "Photo cleanup failed");
+        return;
+      }
+      setPendingCleanup(Number(body?.pending) || 0);
+      const removed = Number(body?.removed) || 0;
+      const failed = Number(body?.failed) || 0;
+      if (failed > 0) {
+        setError(
+          `Removed ${removed} leftover photo file(s); ${failed} still failed and will retry on the next start.`
+        );
+      } else if (removed > 0) {
+        setMessage(`Removed ${removed} leftover photo file(s).`);
+      } else {
+        setMessage("No leftover photo files to remove.");
+      }
+    } catch {
+      setError("Couldn't reach the server.");
+    } finally {
+      setRetryingCleanup(false);
+    }
+  }
+
   async function deleteUserConfirmed() {
     if (!deleteTarget) return;
     const { id, email } = deleteTarget;
@@ -128,11 +162,21 @@ export default function AdminPanel({
         setDeletingUser(false);
         return;
       }
-      setMessage(`Deleted ${email}`);
+      const leftover = Number(body?.cleanup?.pending) || 0;
+      const failedFiles = Number(body?.cleanup?.failed) || 0;
+      setPendingCleanup(leftover);
+      if (failedFiles > 0 || leftover > 0) {
+        setError(
+          `Deleted ${email}. ${leftover || failedFiles} leftover photo file(s) could not be removed; retry from Photo cleanup.`
+        );
+      } else {
+        setMessage(`Deleted ${email}`);
+      }
       if (editingId === id) setEditingId(null);
       setDeleteTarget(null);
       setDeletingUser(false);
       await reloadUsers();
+      router.refresh();
     } catch {
       setError("Couldn't reach the server.");
       setDeletingUser(false);
@@ -686,6 +730,27 @@ export default function AdminPanel({
               : " · no password stored yet"}
           </p>
         </form>
+      </section>
+
+      <section className="card p-5">
+        <h2 className="text-lg font-semibold mb-1">Photo cleanup</h2>
+        <p className="text-xs text-[var(--muted)] mb-4">
+          Deleting a user queues their uploaded files for removal. Leftovers are
+          retried when the app starts; you can also retry here.
+        </p>
+        <p className="text-sm mb-3">
+          {pendingCleanup === 0
+            ? "No leftover photo files."
+            : `${pendingCleanup} leftover photo file${pendingCleanup === 1 ? "" : "s"} waiting to be removed.`}
+        </p>
+        <button
+          type="button"
+          onClick={() => void retryPhotoCleanup()}
+          disabled={retryingCleanup}
+          className="rounded-md border border-[var(--border)] px-4 py-2 text-sm hover:bg-[var(--surface-hover)] disabled:opacity-50"
+        >
+          {retryingCleanup ? "Retrying…" : "Retry leftover photo cleanup"}
+        </button>
       </section>
 
       <ConfirmDialog

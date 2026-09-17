@@ -310,6 +310,16 @@ model Photo {
   createdAt DateTime @default(now())
 }
 
+/// Filenames to delete from PHOTOS_DIR after Photo rows are gone (user delete).
+/// No FK to User/Photo — those rows cascade away before the files are unlinked.
+model PhotoCleanupJob {
+  id        Int      @id @default(autoincrement())
+  filename  String   @unique
+  attempts  Int      @default(0)
+  lastError String?
+  createdAt DateTime @default(now())
+}
+
 model Mod {
   id          Int      @id @default(autoincrement())
   itemId      Int

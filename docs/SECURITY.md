@@ -87,6 +87,16 @@ The server fetches remote URLs only through `safeFetch`. Each hop:
 A hostname that merely *looks* public but resolves internally is rejected.
 `localhost` / `*.local` names are blocked without DNS.
 
+## Account deletion and photo files
+
+Deleting a user is a database transaction: owned photo **filenames** are copied
+into `PhotoCleanupJob` first, then the user row is removed (items/photos
+cascade). Files under `PHOTOS_DIR` are unlinked after commit. Missing files
+count as success. Failures stay in the job table, retry on process start, and
+can be retried from Admin → Photo cleanup. Cleanup never follows `..` or
+absolute paths, and it will not unlink a filename still referenced by another
+photo.
+
 ## Production checklist
 
 1. Choose a strong admin password in the first-run setup wizard.
