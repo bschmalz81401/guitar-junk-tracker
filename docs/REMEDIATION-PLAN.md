@@ -7,7 +7,7 @@ This document preserves the remediation plan from the independent review of
 
 Implementation status:
 
-- Phase 1 (reset-link integrity): in progress on `fix/reset-link-origin`
+- Phase 1 (reset-link integrity): done in `a98901f` (PR #1)
 - Phases 2–6: not started
 
 The review ran against the current codebase with `npm run gate` passing (lint,
