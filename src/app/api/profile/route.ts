@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser } from "@/lib/auth";
+import { clearSessionCookie, passwordChangeData, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { normalizeUsername, validateUsername } from "@/lib/username";
@@ -147,8 +147,10 @@ export async function POST(request: NextRequest) {
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash: hashPassword(newPassword) },
+    data: passwordChangeData(hashPassword(newPassword)),
   });
 
-  return NextResponse.json({ success: true, message: "Password updated." });
+  const response = NextResponse.json({ success: true, message: "Password updated." });
+  clearSessionCookie(response);
+  return response;
 }

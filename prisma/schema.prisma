@@ -41,9 +41,11 @@ model User {
   location      String?
   /// When true, anyone can view this user's catalog at /{username}.
   catalogPublic Boolean   @default(false)
-  role          UserRole  @default(user)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  role           UserRole  @default(user)
+  /// Bumped on every password change; must match the value in the session cookie.
+  sessionVersion Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   items       Item[]
   resetTokens PasswordResetToken[]

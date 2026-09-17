@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { passwordChangeData, requireAdmin } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
 import { sendPasswordResetForUser } from "@/lib/passwordReset";
 import {
@@ -91,6 +91,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     username?: string;
     role?: "admin" | "user";
     passwordHash?: string;
+    sessionVersion?: { increment: 1 };
     catalogPublic?: boolean;
   } = {};
 
@@ -145,7 +146,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         { status: 400 }
       );
     }
-    data.passwordHash = hashPassword(body.password);
+    Object.assign(data, passwordChangeData(hashPassword(body.password)));
   }
 
   const user = await prisma.user.update({

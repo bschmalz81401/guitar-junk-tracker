@@ -10,7 +10,8 @@ Implementation status:
 - Phase 1 (reset-link integrity): done in `a98901f` (PR #1)
 - Phase 2 (safe outbound URL fetching): done in `14b0f73` (PR #2)
 - Phase 3 (durable account-deletion file cleanup): done in `2fc057f` (PR #3)
-- Phases 4–6: not started
+- Phase 4 (session revocation on password changes): in progress on `fix/session-revocation`
+- Phases 5–6: not started
 
 The review ran against the current codebase with `npm run gate` passing (lint,
 unit suites, and production build). The build currently emits warnings about
