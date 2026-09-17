@@ -72,6 +72,21 @@ Set in `next.config.ts` for all routes:
 HSTS should be configured on the **reverse proxy** when you terminate TLS, not
 in the app by default (LAN HTTP is common).
 
+## Outbound fetches (product lookup and image URL import)
+
+The server fetches remote URLs only through `safeFetch`. Each hop:
+
+1. Allows `http`/`https` only.
+2. Resolves the hostname (IP literals are checked as-is).
+3. Rejects the destination if **any** record is loopback, private, link-local,
+   multicast, CGNAT, IPv6 unique-local, or an IPv4-mapped/NAT64/6to4 equivalent.
+4. Connects to a resolved address that already passed that check (the TCP
+   connection is not allowed to re-resolve the name).
+5. Follows redirects manually and repeats the same policy on the next URL.
+
+A hostname that merely *looks* public but resolves internally is rejected.
+`localhost` / `*.local` names are blocked without DNS.
+
 ## Production checklist
 
 1. Choose a strong admin password in the first-run setup wizard.

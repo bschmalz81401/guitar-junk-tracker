@@ -15,6 +15,7 @@
     "test:csv-import": "tsx scripts/test-csv-import.ts",
     "test:rate-limit": "tsx scripts/test-rate-limit.ts",
     "test:password-reset": "tsx scripts/test-password-reset.ts",
+    "test:safe-fetch": "tsx scripts/test-safe-fetch.ts",
     "gate": "npm run lint && npm test && npm run build"
   },
   "dependencies": {
