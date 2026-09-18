@@ -2,6 +2,11 @@ import { mkdir, unlink, writeFile } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 import { safeFetch } from "@/lib/safeFetch";
+import {
+  IMAGE_EXTENSIONS,
+  MAX_PHOTO_BYTES,
+  assertPhotoBytes,
+} from "@/lib/uploadPolicy";
 
 export function photosDir(): string {
   return (
@@ -31,43 +36,30 @@ export function resolveStoredPhotoPath(
   return resolved;
 }
 
-export async function savePhoto(file: File): Promise<string> {
+async function persistImageBytes(bytes: Uint8Array): Promise<string> {
+  const kind = assertPhotoBytes(bytes);
   const root = photosDir();
   await mkdir(root, { recursive: true });
-  const ext = path.extname(file.name) || "";
-  const filename = `${randomUUID()}${ext}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(resolveStoredPhotoPath(filename, root), buffer);
+  const filename = `${randomUUID()}${IMAGE_EXTENSIONS[kind]}`;
+  const target = resolveStoredPhotoPath(filename, root);
+  await writeFile(target, bytes);
   return filename;
 }
 
-const MAX_DOWNLOAD_BYTES = 20 * 1024 * 1024;
-
-const CONTENT_TYPE_EXTENSIONS: Record<string, string> = {
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-  "image/webp": ".webp",
-  "image/gif": ".gif",
-  "image/heic": ".heic",
-};
+export async function savePhoto(file: File): Promise<string> {
+  if (file.size > MAX_PHOTO_BYTES) {
+    throw new Error("That image is larger than 10 MB.");
+  }
+  const buffer = Buffer.from(await file.arrayBuffer());
+  return persistImageBytes(buffer);
+}
 
 export async function savePhotoFromUrl(sourceUrl: string): Promise<string> {
-  const { headers, finalUrl, body } = await safeFetch(sourceUrl, {
-    maxBytes: MAX_DOWNLOAD_BYTES,
+  const { body } = await safeFetch(sourceUrl, {
+    maxBytes: MAX_PHOTO_BYTES,
     accept: "image/*,*/*;q=0.8",
   });
-
-  const contentType = (headers.get("content-type") || "").split(";")[0].trim();
-  if (!contentType.startsWith("image/")) {
-    throw new Error("That URL didn't point to an image");
-  }
-
-  const root = photosDir();
-  await mkdir(root, { recursive: true });
-  const ext = CONTENT_TYPE_EXTENSIONS[contentType] || path.extname(finalUrl.pathname) || "";
-  const filename = `${randomUUID()}${ext}`;
-  await writeFile(resolveStoredPhotoPath(filename, root), body);
-  return filename;
+  return persistImageBytes(body);
 }
 
 export async function unlinkStoredPhoto(

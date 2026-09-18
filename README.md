@@ -7,7 +7,7 @@ stays on your machine.
 
 - **Multi-category catalog** with per-category spec sheets (guitars, amps,
   cabs, pedals, multi-FX, other).
-- **Photos** per item — upload files or paste an image URL.
+- **Photos** per item — upload files or paste an image URL (JPEG, PNG, WebP, or GIF, up to 10 MB and 20 photos per item).
 - **Spec auto-fill** — paste a product-page spec sheet or feature list and it
   fills the form.
 - **Compare** items side-by-side within a category.
@@ -113,7 +113,7 @@ Useful scripts:
 
 ```bash
 npm run lint       # eslint
-npm test           # unit tests (parser, privacy, categories, CSV, rate limits, password reset, outbound fetch, photo cleanup, sessions)
+npm test           # unit tests (parser, privacy, categories, CSV, rate limits, password reset, outbound fetch, photo cleanup, sessions, uploads)
 npm run build      # production build
 npm run gate       # lint + test + build
 ```

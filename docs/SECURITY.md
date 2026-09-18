@@ -92,6 +92,19 @@ The server fetches remote URLs only through `safeFetch`. Each hop:
 A hostname that merely *looks* public but resolves internally is rejected.
 `localhost` / `*.local` names are blocked without DNS.
 
+## Photo uploads
+
+Policy (direct file and URL import):
+
+| Limit | Value |
+|--------|--------|
+| Formats | JPEG, PNG, WebP, GIF — from **file bytes**, not the filename or `Content-Type` |
+| Per file | 10 MiB |
+| Per item | 20 photos |
+| Request | `Content-Length` must not exceed 10 MiB + 256 KiB of multipart overhead |
+
+Rejected payloads are not written. If the database insert fails after a write, the file is unlinked. Existing HEIC files already on disk can still be served; new HEIC uploads are rejected.
+
 ## Account deletion and photo files
 
 Deleting a user is a database transaction: owned photo **filenames** are copied
