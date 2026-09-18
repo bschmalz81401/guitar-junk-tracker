@@ -7,7 +7,7 @@ import { isReservedPathSegment } from "@/lib/username";
  * - Rewrites /{username}… public catalog URLs onto internal /u/{username}…
  *   routes so they don't collide with /guitars, /admin, etc.
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const requestHeaders = new Headers(request.headers);

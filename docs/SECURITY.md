@@ -92,6 +92,12 @@ The server fetches remote URLs only through `safeFetch`. Each hop:
 A hostname that merely *looks* public but resolves internally is rejected.
 `localhost` / `*.local` names are blocked without DNS.
 
+## Guest landing / showcase
+
+The guest home page may show category **counts and photos** only when the
+showcase user's catalog is public. A private showcase is a login teaser with
+zeroed counts so collection size is not disclosed.
+
 ## Photo uploads
 
 Policy (direct file and URL import):

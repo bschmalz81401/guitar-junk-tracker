@@ -3,9 +3,12 @@
  * Run: npx tsx scripts/test-privacy.ts
  */
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   canRevealPricePaid,
   canRevealSerialNumber,
+  guestVisibleCategoryCounts,
   isCatalogPubliclyAccessible,
 } from "../src/lib/privacy";
 import { parseItemBody } from "../src/lib/itemBody";
@@ -31,6 +34,37 @@ check("private catalog is not publicly accessible", () => {
 
 check("opt-in catalog is publicly accessible", () => {
   assert.equal(isCatalogPubliclyAccessible(true), true);
+});
+
+check("private showcase catalogs do not expose category counts", () => {
+  assert.deepEqual(
+    guestVisibleCategoryCounts(false, { guitar: 4, amp: 2 }, ["guitar", "amp", "cab"]),
+    { guitar: 0, amp: 0, cab: 0 }
+  );
+});
+
+check("public showcase catalogs may show category counts", () => {
+  assert.deepEqual(
+    guestVisibleCategoryCounts(true, { guitar: 4 }, ["guitar", "amp"]),
+    { guitar: 4, amp: 0 }
+  );
+});
+
+check("Next.js proxy.ts replaces deprecated middleware.ts", () => {
+  const root = join(__dirname, "..", "src");
+  assert.equal(existsSync(join(root, "middleware.ts")), false);
+  const src = readFileSync(join(root, "proxy.ts"), "utf8");
+  assert.match(src, /export function proxy\(/);
+  assert.equal(/export function middleware\(/.test(src), false);
+});
+
+check("home page uses guestVisibleCategoryCounts for the landing grid", () => {
+  const src = readFileSync(
+    join(__dirname, "..", "src/app/page.tsx"),
+    "utf8"
+  );
+  assert.match(src, /guestVisibleCategoryCounts\(/);
+  assert.match(src, /isPublic && showcase/);
 });
 
 check("guest cannot see price when pricePaidPublic is false", () => {

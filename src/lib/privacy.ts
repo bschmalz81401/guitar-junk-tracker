@@ -11,6 +11,22 @@ export function isCatalogPubliclyAccessible(
 }
 
 /**
+ * Guests on the landing page may see category counts only when the showcase
+ * catalog is public. Private collections report zeros so size is not leaked.
+ */
+export function guestVisibleCategoryCounts(
+  catalogPublic: boolean,
+  counts: Record<string, number>,
+  keys: string[]
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const key of keys) {
+    out[key] = catalogPublic ? (counts[key] ?? 0) : 0;
+  }
+  return out;
+}
+
+/**
  * Whether the price-paid value may be shown to the current viewer.
  * Owners always see it when set; public viewers only when pricePaidPublic.
  */
