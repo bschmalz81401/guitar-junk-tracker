@@ -11,7 +11,8 @@ Implementation status:
 - Phase 2 (safe outbound URL fetching): done in `14b0f73` (PR #2)
 - Phase 3 (durable account-deletion file cleanup): done in `2fc057f` (PR #3)
 - Phase 4 (session revocation on password changes): done in `59c904c` (PR #4)
-- Phases 5–6: not started
+- Phase 5 (upload policy): in progress on `fix/upload-policy`
+- Phase 6: not started
 
 The review ran against the current codebase with `npm run gate` passing (lint,
 unit suites, and production build). The build currently emits warnings about
@@ -170,9 +171,12 @@ are not locked out.
 
 ### Required decision before implementation
 
-Choose the allowed image formats and concrete file/count/request limits. Do not
-invent these values during implementation; record the selected policy in the
-configuration documentation and tests.
+Recorded policy (home-lab catalog, not a public CDN):
+
+- Formats: JPEG, PNG, WebP, GIF (magic bytes only; HEIC is not accepted)
+- Max file size: 10 MiB
+- Max photos per item: 20
+- Max request: 10 MiB + 256 KiB multipart overhead
 
 ### Acceptance criteria
 

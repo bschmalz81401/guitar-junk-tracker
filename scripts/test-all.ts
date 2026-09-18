@@ -14,6 +14,7 @@ const scripts = [
   "test-safe-fetch.ts",
   "test-photo-cleanup.ts",
   "test-session.ts",
+  "test-upload.ts",
   "test-parser.ts",
 ];
 const root = join(__dirname, "..");
