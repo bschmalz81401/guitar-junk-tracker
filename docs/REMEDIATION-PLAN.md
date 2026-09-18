@@ -199,6 +199,9 @@ uploaded, valid files remain unaffected.
 - Decide whether private showcase catalog counts may be exposed and enforce the
   selected policy with a test.
 
+Recorded decision: **do not expose** category counts (or covers) for a private
+showcase catalog. Guests see zeros until the owner makes the catalog public.
+
 ### Acceptance criteria
 
 - The production build has no middleware-deprecation or storage-tracing

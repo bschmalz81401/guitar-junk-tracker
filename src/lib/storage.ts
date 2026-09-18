@@ -8,11 +8,14 @@ import {
   assertPhotoBytes,
 } from "@/lib/uploadPolicy";
 
+const DEFAULT_PHOTOS_DIR = path.join(
+  /* turbopackIgnore: true */ process.cwd(),
+  "data",
+  "photos"
+);
+
 export function photosDir(): string {
-  return (
-    process.env.PHOTOS_DIR ||
-    path.join(/* turbopackIgnore: true */ process.cwd(), "data", "photos")
-  );
+  return process.env.PHOTOS_DIR || DEFAULT_PHOTOS_DIR;
 }
 
 /** Absolute directory where uploaded photos live (Docker: `/data/photos`). */

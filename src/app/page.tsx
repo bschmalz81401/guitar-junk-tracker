@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getSessionUser } from "@/lib/auth";
 import { categoryCounts, randomCategoryCovers } from "@/lib/items";
 import { getSettings } from "@/lib/settings";
+import { guestVisibleCategoryCounts } from "@/lib/privacy";
 import { getShowcaseUser } from "@/lib/showcase";
 import { CATEGORY_LIST } from "@/types/categories";
 import CategoryGrid from "@/components/CategoryGrid";
@@ -17,19 +18,18 @@ export default async function Home() {
   if (!user) {
     const showcase = await getShowcaseUser();
     const isPublic = Boolean(showcase?.catalogPublic && showcase.username);
-    const [counts, coverByCategory] = showcase
-      ? await Promise.all([
-          categoryCounts(showcase.id),
-          isPublic
-            ? randomCategoryCovers(showcase.id)
-            : Promise.resolve({} as Record<string, string>),
-        ])
-      : [{}, {} as Record<string, string>];
-
-    const safeCounts: Record<string, number> = { ...counts };
-    for (const c of CATEGORY_LIST) {
-      if (safeCounts[c.key] === undefined) safeCounts[c.key] = 0;
-    }
+    const [rawCounts, coverByCategory] =
+      isPublic && showcase
+        ? await Promise.all([
+            categoryCounts(showcase.id),
+            randomCategoryCovers(showcase.id),
+          ])
+        : [{}, {} as Record<string, string>];
+    const safeCounts = guestVisibleCategoryCounts(
+      isPublic,
+      rawCounts,
+      CATEGORY_LIST.map((c) => c.key)
+    );
     const total = Object.values(safeCounts).reduce((a, b) => a + b, 0);
     const publicBase = isPublic ? `/${showcase!.username}` : null;
 
