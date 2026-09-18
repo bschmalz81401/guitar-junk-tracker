@@ -11,8 +11,8 @@ Implementation status:
 - Phase 2 (safe outbound URL fetching): done in `14b0f73` (PR #2)
 - Phase 3 (durable account-deletion file cleanup): done in `2fc057f` (PR #3)
 - Phase 4 (session revocation on password changes): done in `59c904c` (PR #4)
-- Phase 5 (upload policy): in progress on `fix/upload-policy`
-- Phase 6: not started
+- Phase 5 (upload policy): done in `745c35f` (PR #5)
+- Phase 6 (maintenance): in progress on `fix/maintenance-proxy-showcase`
 
 The review ran against the current codebase with `npm run gate` passing (lint,
 unit suites, and production build). The build currently emits warnings about
