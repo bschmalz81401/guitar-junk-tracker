@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { resetTokenHash } from "@/lib/auth";
+import { passwordChangeData, resetTokenHash } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import {
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
   await prisma.user.update({
     where: { id: record.userId },
-    data: { passwordHash: hashPassword(password) },
+    data: passwordChangeData(hashPassword(password)),
   });
   await prisma.passwordResetToken.deleteMany({ where: { userId: record.userId } });
 

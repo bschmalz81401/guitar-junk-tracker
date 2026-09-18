@@ -159,7 +159,8 @@ export default function ProfileForm({ profile }: { profile: ProfileData }) {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      setPwMessage("Password updated.");
+      setPwMessage("Password updated. Sign in again with the new password.");
+      window.location.assign("/login");
     } catch {
       setPwError("Couldn't reach the server.");
     } finally {

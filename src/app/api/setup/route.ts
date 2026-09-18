@@ -104,6 +104,10 @@ export async function POST(request: NextRequest) {
   await updateSettings({ showcaseEmail: user.email }).catch(() => {});
 
   const response = NextResponse.json({ success: true });
-  response.cookies.set(AUTH_COOKIE, await createSessionToken(user.id), SESSION_COOKIE_OPTIONS);
+  response.cookies.set(
+    AUTH_COOKIE,
+    await createSessionToken(user.id, user.sessionVersion),
+    SESSION_COOKIE_OPTIONS
+  );
   return response;
 }

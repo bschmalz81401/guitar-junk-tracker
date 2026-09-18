@@ -7,7 +7,7 @@ Not hardened as a multi-tenant public SaaS.
 
 | Flag | Value | Why |
 |------|--------|-----|
-| Name | `gt_session` | HMAC session token (`userId.expires.sig`) |
+| Name | `gt_session` | HMAC session token (`userId.expires.sessionVersion.sig`) |
 | `httpOnly` | true | Not readable from JavaScript |
 | `sameSite` | `lax` | Browser omits cookie on most cross-site POSTs (CSRF mitigation) |
 | `path` | `/` | Whole app |
@@ -18,8 +18,13 @@ Logout clears the cookie with the **same** path/secure attributes.
 
 **Session audit:** Tokens are signed with `AppSettings.sessionSecret`
 (generated on first run). Verification uses `timingSafeEqual`. Expired tokens
-are rejected. There is **no server-side session store** — revocation means
-changing the session secret (logs everyone out) or waiting for expiry.
+are rejected. Each user has a `sessionVersion`; password reset, profile
+password change, and admin-set passwords increment it, so previously issued
+cookies stop verifying. A three-part legacy cookie (`userId.expires.sig`) is
+still accepted as version `0` so existing sessions survive this deploy. Changing
+your password on the profile page also clears this browser’s cookie; other
+password-change paths rely on the version bump alone. Sign in again to get a
+new token.
 
 ## CSRF
 
@@ -110,6 +115,6 @@ photo.
 ## Out of scope (later)
 
 - Distributed rate limits (Redis) for multi-replica
-- Server-side session revocation list
+- Distributed session store (per-user `sessionVersion` covers password-change logout)
 - Full CSRF tokens for every mutating API
 - CAPTCHA on login/signup

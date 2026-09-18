@@ -88,6 +88,10 @@ export async function POST(request: NextRequest) {
       role: user.role,
     },
   });
-  response.cookies.set(AUTH_COOKIE, await createSessionToken(user.id), SESSION_COOKIE_OPTIONS);
+  response.cookies.set(
+    AUTH_COOKIE,
+    await createSessionToken(user.id, user.sessionVersion),
+    SESSION_COOKIE_OPTIONS
+  );
   return response;
 }

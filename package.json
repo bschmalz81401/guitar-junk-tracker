@@ -17,6 +17,7 @@
     "test:password-reset": "tsx scripts/test-password-reset.ts",
     "test:safe-fetch": "tsx scripts/test-safe-fetch.ts",
     "test:photo-cleanup": "tsx scripts/test-photo-cleanup.ts",
+    "test:session": "tsx scripts/test-session.ts",
     "gate": "npm run lint && npm test && npm run build"
   },
   "dependencies": {
