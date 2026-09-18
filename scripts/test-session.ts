@@ -10,6 +10,7 @@ import {
   decodeSessionToken,
   encodeSessionToken,
   passwordChangeData,
+  sessionUserFromClaims,
 } from "../src/lib/auth";
 
 const secret = "test-session-secret-not-for-prod";
@@ -103,9 +104,39 @@ check("admin password change uses passwordChangeData", () => {
   assertUsesPasswordChangeData("src/app/api/admin/users/[id]/route.ts");
 });
 
-check("getSessionUser rejects a mismatched sessionVersion", () => {
-  const src = readFileSync(join(__dirname, "..", "src/lib/auth.ts"), "utf8");
-  assert.match(src, /user\.sessionVersion !== parsed\.sessionVersion/);
+check("a token is rejected when the user sessionVersion has moved on", () => {
+  const token = encodeSessionToken(
+    { userId: 9, expires: now + 60_000, sessionVersion: 0 },
+    secret
+  );
+  const claims = decodeSessionToken(token, secret, now);
+  const revoked = sessionUserFromClaims(claims, {
+    id: 9,
+    email: "a@b.c",
+    name: null,
+    role: "user",
+    sessionVersion: 1,
+  });
+  assert.equal(revoked, null);
+});
+
+check("a token still verifies when versions match, including after re-login", () => {
+  const afterReset = passwordChangeData("new-hash");
+  assert.equal(afterReset.sessionVersion.increment, 1);
+  const newVersion = 0 + afterReset.sessionVersion.increment;
+  const token = encodeSessionToken(
+    { userId: 9, expires: now + 60_000, sessionVersion: newVersion },
+    secret
+  );
+  const user = sessionUserFromClaims(decodeSessionToken(token, secret, now), {
+    id: 9,
+    email: "a@b.c",
+    name: null,
+    role: "user",
+    sessionVersion: newVersion,
+  });
+  assert.equal(user?.id, 9);
+  assert.equal(user?.email, "a@b.c");
 });
 
 check("migration adds sessionVersion with default 0", () => {

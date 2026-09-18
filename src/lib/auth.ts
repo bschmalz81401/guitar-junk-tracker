@@ -85,20 +85,32 @@ export function decodeSessionToken(
 }
 
 /** Session token: userId.expires.sessionVersion.signature */
+export function sessionUserFromClaims(
+  claims: SessionClaims | null,
+  user: (SessionUser & { sessionVersion: number }) | null
+): SessionUser | null {
+  if (!claims || !user) return null;
+  if (user.sessionVersion !== claims.sessionVersion) return null;
+  return { id: user.id, email: user.email, name: user.name, role: user.role };
+}
+
+/** Session token: userId.expires.sessionVersion.signature */
 export async function createSessionToken(
   userId: number,
   sessionVersion?: number
 ): Promise<string> {
   const secret = await signingSecret();
-  const version =
-    sessionVersion ??
-    (
-      await prisma.user.findUnique({
-        where: { id: userId },
-        select: { sessionVersion: true },
-      })
-    )?.sessionVersion ??
-    0;
+  let version = sessionVersion;
+  if (version === undefined) {
+    const row = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { sessionVersion: true },
+    });
+    if (!row) {
+      throw new Error("Cannot issue a session for an unknown user");
+    }
+    version = row.sessionVersion;
+  }
   const expires = Date.now() + SESSION_MAX_AGE_SECONDS * 1000;
   return encodeSessionToken({ userId, expires, sessionVersion: version }, secret);
 }
@@ -119,8 +131,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     where: { id: parsed.userId },
     select: { id: true, email: true, name: true, role: true, sessionVersion: true },
   });
-  if (!user || user.sessionVersion !== parsed.sessionVersion) return null;
-  return { id: user.id, email: user.email, name: user.name, role: user.role };
+  return sessionUserFromClaims(parsed, user);
 }
 
 export async function isAdmin(): Promise<boolean> {

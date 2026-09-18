@@ -21,9 +21,10 @@ Logout clears the cookie with the **same** path/secure attributes.
 are rejected. Each user has a `sessionVersion`; password reset, profile
 password change, and admin-set passwords increment it, so previously issued
 cookies stop verifying. A three-part legacy cookie (`userId.expires.sig`) is
-still accepted as version `0` so existing sessions survive this deploy. After
-a password change the current cookie is cleared; sign in again to get a new
-token.
+still accepted as version `0` so existing sessions survive this deploy. Changing
+your password on the profile page also clears this browser’s cookie; other
+password-change paths rely on the version bump alone. Sign in again to get a
+new token.
 
 ## CSRF
 
