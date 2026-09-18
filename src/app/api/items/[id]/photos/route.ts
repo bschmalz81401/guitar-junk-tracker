@@ -68,7 +68,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to save image";
-    const status = /larger than 10 MB/.test(message) ? 413 : 400;
+    const status = /larger than 10 MB|too large/i.test(message) ? 413 : 400;
     return NextResponse.json({ error: message }, { status });
   }
 

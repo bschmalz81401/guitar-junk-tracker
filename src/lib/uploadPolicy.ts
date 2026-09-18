@@ -64,10 +64,11 @@ export function assertPhotoCount(existing: number): void {
 }
 
 export function assertUploadRequestSize(contentLengthHeader: string | null): void {
-  if (!contentLengthHeader) return;
+  if (!contentLengthHeader || !contentLengthHeader.trim()) {
+    throw new Error("That upload is larger than 10 MB.");
+  }
   const length = Number(contentLengthHeader);
-  if (!Number.isFinite(length) || length < 0) return;
-  if (length > MAX_UPLOAD_REQUEST_BYTES) {
+  if (!Number.isFinite(length) || length < 0 || length > MAX_UPLOAD_REQUEST_BYTES) {
     throw new Error("That upload is larger than 10 MB.");
   }
 }

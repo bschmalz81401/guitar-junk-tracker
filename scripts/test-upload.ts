@@ -67,6 +67,11 @@ async function main() {
   await check("rejects empty, spoofed, and oversized payloads", () => {
     assert.throws(() => assertPhotoBytes(Buffer.alloc(0)), /empty/);
     assert.throws(() => assertPhotoBytes(Buffer.from("<html>")), /JPEG, PNG, WebP, and GIF/);
+    const heic = Buffer.from([
+      0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63,
+    ]);
+    assert.equal(detectImageKind(heic), null);
+    assert.throws(() => assertPhotoBytes(heic), /JPEG, PNG, WebP, and GIF/);
     const huge = Buffer.alloc(MAX_PHOTO_BYTES + 1, 0xff);
     huge[0] = 0xff;
     huge[1] = 0xd8;
@@ -83,6 +88,9 @@ async function main() {
       () => assertUploadRequestSize(String(MAX_UPLOAD_REQUEST_BYTES + 1)),
       /10 MB/
     );
+    assert.throws(() => assertUploadRequestSize(null), /10 MB/);
+    assert.throws(() => assertUploadRequestSize(""), /10 MB/);
+    assert.throws(() => assertUploadRequestSize("nope"), /10 MB/);
   });
 
   await check("saves a PNG using the detected extension, ignoring the filename", async () => {
