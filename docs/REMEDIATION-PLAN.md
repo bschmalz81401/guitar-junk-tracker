@@ -12,11 +12,11 @@ Implementation status:
 - Phase 3 (durable account-deletion file cleanup): done in `2fc057f` (PR #3)
 - Phase 4 (session revocation on password changes): done in `59c904c` (PR #4)
 - Phase 5 (upload policy): done in `745c35f` (PR #5)
-- Phase 6 (maintenance): in progress on `fix/maintenance-proxy-showcase`
+- Phase 6 (maintenance): done in `1f76487` (PR #6)
 
-The review ran against the current codebase with `npm run gate` passing (lint,
-unit suites, and production build). The build currently emits warnings about
-Next.js middleware deprecation and broad filesystem tracing.
+All six phases are merged. The original review ran against `638d550` with
+`npm run gate` passing; the production build no longer emits the middleware
+deprecation or storage-tracing warnings.
 
 ## Review findings
 
